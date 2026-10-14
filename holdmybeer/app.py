@@ -17,7 +17,7 @@ from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator, model_validator
 
-VERSION = "0.1.0"
+VERSION = "0.2.0a1"
 MAX_MEDIA_BYTES = 100 * 1024 * 1024
 DATA_DIR = Path(os.environ.get("HMB_DATA_DIR", "~/.local/share/holdmybeer")).expanduser().resolve()
 _ASSET_DIR = Path(__file__).resolve().parent / "web"

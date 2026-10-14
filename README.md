@@ -2,6 +2,8 @@
 
 **Teach your agent by showing it.**
 
+Local teaching alpha `0.2.0a1`. See the [prerelease](https://github.com/wspotter/HoldMyBeer/releases/tag/v0.2.0a1) for the installable wheel and checksum.
+
 The goal: show an app workflow, let the agent ask questions, then watch it try and improve from your corrections. This first prototype supplies the recording workspace and a reproducible trial engine. HoldMyBeer is an early plugin/skill project for teaching and checking browser workflows with the agent you already use. The shared engine is intended to support MCP-compatible clients such as Codex, Claude Code and editor integrations; Hermes is the first adapter. A stdio MCP bridge now exposes local recordings and teaching proposals; see [client setup](docs/CLIENTS.md). Individual client installations still need end-to-end verification.
 
 ## What works today

@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>HoldMyBeer · Teach DITTO</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="/">HoldMyBeer<span> / LAB</span></a>
+      <div class="header-right">
+        <span class="status-dot"></span> LOCAL PREVIEW
+        <a href="/fixture" target="_blank" rel="noopener"
+          >Open practice app ↗</a
+        >
+      </div>
+    </header>
+    <div class="layout">
+      <aside>
+        <div class="aside-title">
+          YOUR WORKFLOWS
+          <button id="newSession" aria-label="New workflow">+</button>
+        </div>
+        <nav id="sessions"></nav>
+        <div class="aside-bottom">
+          <div class="ditto-mark" aria-hidden="true">〃</div>
+          <strong>Meet DITTO.</strong>
+          <p>You show the way.<br />We keep the receipts.</p>
+          <small
+            >Video capture works. Teaching is manual in this preview. AI
+            analysis is next.</small
+          >
+        </div>
+      </aside>
+      <main>
+        <div class="intro">
+          <div>
+            <p class="eyebrow">DEMONSTRATION → PROCEDURE → PROOF</p>
+            <h1>Show it once.<br /><span>Make it repeatable.</span></h1>
+            <p class="intro-copy">
+              A workspace for teaching your agent how you actually work.
+            </p>
+          </div>
+          <div class="stamp">
+            HOLD MY<br /><strong>BEER.</strong><span>LET ME TRY THIS.</span>
+          </div>
+        </div>
+        <section class="workflow-heading">
+          <div>
+            <label class="eyebrow" for="title">CURRENT WORKFLOW</label
+            ><input
+              id="title"
+              value="Prepare a video draft"
+              aria-label="Workflow name"
+            />
+          </div>
+          <button class="quiet" id="save">Save notes <span>↗</span></button>
+        </section>
+        <div class="tabs" role="tablist">
+          <button
+            class="active"
+            data-tab="record"
+            role="tab"
+            aria-selected="true"
+          >
+            <span>01</span> Show DITTO</button
+          ><button data-tab="teach" role="tab" aria-selected="false">
+            <span>02</span> Explain the why</button
+          ><button data-tab="test" role="tab" aria-selected="false">
+            <span>03</span> Let it try
+          </button>
+        </div>
+        <section id="record" class="tab-panel">
+          <div class="workbench">
+            <div class="media-pane">
+              <div class="media-top">
+                <span id="mediaState">NO RECORDING YET</span
+                ><span id="timer">00:00</span>
+              </div>
+              <div id="videoEmpty">
+                <div class="record-orbit"><span></span></div>
+                <h2>Your way is the starting point.</h2>
+                <p>
+                  Record an app window or browser tab.<br />Walk through the
+                  task at your own pace.
+                </p>
+              </div>
+              <video id="video" controls hidden></video>
+              <div class="media-bottom">
+                <button class="primary" id="recordStart">
+                  <span class="record-dot"></span> Record screen</button
+                ><button class="primary" id="recordStop" hidden>
+                  ■ Stop & save</button
+                ><label class="file-button"
+                  >Import video<input
+                    id="importVideo"
+                    type="file"
+                    accept="video/webm,video/mp4"
+                    hidden /></label
+                ><button class="quiet" id="addMoment">
+                  + Mark this moment
+                </button>
+              </div>
+            </div>
+            <div class="inspector">
+              <p class="eyebrow">FIELD NOTES</p>
+              <h2>Capture the decisions,<br />not just the clicks.</h2>
+              <p>
+                Select a screen through your browser's picker. Recordings stay
+                in your local workspace.
+              </p>
+              <label for="notes">What should DITTO know?</label
+              ><textarea
+                id="notes"
+                placeholder="Why this account? What tells you the upload is done? What should happen if something looks different?"
+              ></textarea>
+              <div class="hint">
+                <span>↳</span> AI video analysis isn't connected yet. Your notes
+                and checkpoints are the teaching material.
+              </div>
+            </div>
+          </div>
+          <div class="timeline">
+            <div class="section-title">
+              <h3>Teaching moments</h3>
+              <span id="momentCount">0 marked</span>
+            </div>
+            <div id="moments">
+              <p class="empty">
+                Pause your video at a decision and mark the moment.
+              </p>
+            </div>
+          </div>
+        </section>
+        <section id="teach" class="tab-panel" hidden>
+          <div class="teaching-grid">
+            <div>
+              <p class="eyebrow">DITTO'S TEACHING WORKBOOK</p>
+              <h2>Make the invisible<br />parts explicit.</h2>
+              <p class="muted">
+                These are editable prompts, not AI-generated questions. Your
+                answers persist with this workflow.
+              </p>
+              <div id="questions"></div>
+            </div>
+            <div class="procedure">
+              <div class="section-title">
+                <h3>The procedure</h3>
+                <span>REVISION <b id="revision">1</b></span>
+              </div>
+              <p class="muted">
+                Define what to do and the evidence that proves it happened.
+                These are teaching notes. The trial runs a fixed practice
+                routine; it does not execute your edited steps.
+              </p>
+              <div id="steps"></div>
+              <button id="addStep" class="quiet">+ Add checkpoint</button
+              ><button id="saveProcedure" class="primary">
+                Save teaching revision
+              </button>
+            </div>
+          </div>
+        </section>
+        <section id="test" class="tab-panel" hidden>
+          <div class="trial-grid">
+            <div>
+              <p class="eyebrow">A FRESH INPUT. A REAL ATTEMPT.</p>
+              <h2>Trust the result.<br />Check the evidence.</h2>
+              <p class="muted">
+                This trial runs a fixed practice routine in a real browser,
+                independently of your recording and edited procedure. It does
+                not post to any social account.
+              </p>
+              <label for="filename">New file name</label
+              ><input id="filename" value="second-product-demo.txt" /><label
+                for="caption"
+                >New caption</label
+              ><textarea id="caption">
+A fresh example, prepared for review.</textarea
+              ><label for="variant">Practice condition</label
+              ><select id="variant">
+                <option value="normal">Normal interface</option>
+                <option value="changed">
+                  Changed button label — expect a teaching stop
+                </option></select
+              ><label class="check"
+                ><input type="checkbox" id="repair" /> I reviewed the changed
+                label: use “Store draft”</label
+              ><button class="primary" id="run">
+                Let DITTO try <span>↗</span></button
+              ><small class="trial-note"
+                >The fixture uploads a generated text file to test the flow.
+                This is not video-platform acceptance.</small
+              >
+            </div>
+            <div class="evidence-pane">
+              <div class="section-title">
+                <h3>Run evidence</h3>
+                <span id="runStatus">AWAITING TRIAL</span>
+              </div>
+              <select
+                id="runHistory"
+                aria-label="Trial history"
+                hidden
+              ></select>
+              <div id="results">
+                <div class="awaiting">
+                  <span>〃</span>
+                  <h3>Proof belongs here.</h3>
+                  <p>
+                    The saved draft, checkpoints and screenshot will appear
+                    after a trial.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <footer>
+          <span>HoldMyBeer / Experimental Hermes plugin</span
+          ><span>Built to be taught. Built to be questioned.</span>
+        </footer>
+      </main>
+    </div>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <script src="/app.js"></script>
+  </body>
+</html>

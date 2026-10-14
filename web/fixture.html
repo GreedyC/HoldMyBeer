@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>DITTO practice · Save a draft</title>
+    <link rel="stylesheet" href="/style.css" />
+    <style>
+      main {
+        max-width: 850px;
+        margin: auto;
+        padding: 40px 24px;
+      }
+      .practice-steps {
+        padding: 20px 0;
+        border-top: 1px solid var(--line);
+        line-height: 1.8;
+      }
+      .draft-form {
+        max-width: 540px;
+      }
+      .receipt-box {
+        background: #e7edda;
+        padding: 20px;
+        margin-top: 24px;
+        border-radius: 5px;
+      }
+      .receipt-box h2 {
+        margin: 0 0 10px;
+        font-size: 24px;
+      }
+      #feedback {
+        padding: 12px 0;
+        min-height: 45px;
+      }
+      output {
+        font: 11px monospace;
+        overflow-wrap: anywhere;
+        display: block;
+        color: var(--muted);
+        margin-top: 15px;
+      }
+      .draft-row {
+        padding: 15px 0;
+        border-top: 1px solid var(--line);
+      }
+      .draft-row p {
+        margin: 5px 0;
+      }
+      .draft-row small {
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <a href="/" class="brand">HoldMyBeer<span>/ PRACTICE</span></a
+      ><a href="/">Back to recording workspace ↗</a>
+    </header>
+    <main>
+      <p class="eyebrow">PRACTICE TASK · NO SOCIAL ACCOUNT</p>
+      <h1>Prepare a draft.</h1>
+      <p>
+        Try this once to see the result. Then repeat it while recording this
+        tab.
+      </p>
+      <div class="practice-steps">
+        <strong>1.</strong> Click <strong>Use sample file</strong>.<br /><strong
+          >2.</strong
+        >
+        Edit the caption if you like.<br /><strong>3.</strong> Click
+        <strong>Save draft</strong> and look for the saved receipt below.
+      </div>
+      <div class="draft-form">
+        <button id="sample" class="quiet">Use sample file ↗</button
+        ><label for="file">Media</label
+        ><input id="file" type="file" aria-label="Media" /><label for="caption"
+          >Caption</label
+        ><input
+          id="caption"
+          aria-label="Caption"
+          placeholder="A caption for this draft"
+          maxlength="2000"
+        />
+        <p class="muted">
+          The sample is a harmless text file. This practice app stores its
+          filename and caption, not its contents.
+        </p>
+        <button id="saveDraft" class="primary">Save draft</button>
+        <div id="feedback" role="status" aria-live="polite">
+          No draft saved in this attempt yet.
+        </div>
+      </div>
+      <section id="receipt" class="receipt-box" hidden>
+        <h2>Draft saved and verified.</h2>
+        <p id="receiptCaption"></p>
+        <p id="receiptFile"></p>
+        <small id="receiptId"></small>
+      </section>
+      <output></output>
+      <section style="margin-top: 30px">
+        <h2>Saved practice drafts</h2>
+        <p class="muted">
+          This list comes from retained storage. Reloading the page keeps the
+          saved drafts.
+        </p>
+        <div id="draftList">Loading saved drafts…</div>
+      </section>
+    </main>
+    <script>
+      const file = document.getElementById("file"),
+        caption = document.getElementById("caption"),
+        save = document.getElementById("saveDraft"),
+        feedback = document.getElementById("feedback");
+      if (new URLSearchParams(location.search).get("variant") === "changed")
+        save.textContent = "Store draft";
+      async function drafts() {
+        const r = await fetch("/api/fixture/drafts");
+        if (!r.ok) throw Error("Could not retrieve saved drafts.");
+        const d = (await r.json()).drafts;
+        const list = document.getElementById("draftList");
+        list.replaceChildren();
+        for (const draft of d.slice(-5).reverse()) {
+          const row = document.createElement("div");
+          row.className = "draft-row";
+          const title = document.createElement("strong");
+          title.textContent = draft.caption;
+          const meta = document.createElement("p");
+          meta.textContent = draft.filename;
+          const id = document.createElement("small");
+          id.textContent = "Draft ID: " + draft.id;
+          row.append(title, meta, id);
+          list.append(row);
+        }
+        if (!d.length) list.textContent = "No practice drafts yet.";
+        return d;
+      }
+      document.getElementById("sample").onclick = () => {
+        const dt = new DataTransfer();
+        dt.items.add(
+          new File(
+            ["Harmless HoldMyBeer practice file."],
+            "ditto-practice.txt",
+            { type: "text/plain" },
+          ),
+        );
+        file.files = dt.files;
+        caption.value = "A draft prepared for review.";
+        feedback.textContent =
+          "Sample ready. Next: click " + save.textContent + ".";
+      };
+      save.onclick = async () => {
+        const f = file.files[0];
+        if (!f) {
+          feedback.textContent =
+            "Choose a file or click Use sample file first.";
+          return;
+        }
+        if (!caption.value.trim()) {
+          feedback.textContent = "Enter a caption before saving.";
+          caption.focus();
+          return;
+        }
+        save.disabled = true;
+        feedback.textContent = "Saving draft…";
+        document.querySelector("output").textContent = "";
+        document.getElementById("receipt").hidden = true;
+        try {
+          const r = await fetch("/api/fixture/drafts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ caption: caption.value, filename: f.name }),
+          });
+          const d = await r.json();
+          if (!r.ok)
+            throw Error(
+              typeof d.detail === "string"
+                ? d.detail
+                : "Draft could not be saved.",
+            );
+          const retained = await drafts();
+          if (!retained.some((x) => x.id === d.id))
+            throw Error("Saved draft could not be verified.");
+          document.getElementById("receiptCaption").textContent =
+            "Caption: " + d.caption;
+          document.getElementById("receiptFile").textContent =
+            "File: " + d.filename;
+          document.getElementById("receiptId").textContent =
+            "Draft ID: " + d.id;
+          document.getElementById("receipt").hidden = false;
+          document.querySelector("output").textContent = JSON.stringify(d);
+          feedback.textContent =
+            "Done. The receipt and saved-draft list confirm the result.";
+        } catch (e) {
+          feedback.textContent = e.message;
+        } finally {
+          save.disabled = false;
+        }
+      };
+      drafts().catch(
+        (e) => (document.getElementById("draftList").textContent = e.message),
+      );
+    </script>
+  </body>
+</html>

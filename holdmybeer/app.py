@@ -20,20 +20,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator
 VERSION = "0.1.0"
 MAX_MEDIA_BYTES = 100 * 1024 * 1024
 DATA_DIR = Path(os.environ.get("HMB_DATA_DIR", "~/.local/share/holdmybeer")).expanduser().resolve()
-FIXTURE_HTML = """<!doctype html><html><head><meta charset=utf-8><title>HoldMyBeer fixture</title></head>
-<body><main><h1>Save a draft</h1><label>Caption <input aria-label="Caption"></label>
-<label>Media <input type=file aria-label="Media"></label><button>Save draft</button>
-<output aria-live=polite></output><script>
-if(new URLSearchParams(location.search).get('variant')==='changed') document.querySelector('button').textContent='Store draft';
-document.querySelector('button').addEventListener('click',async()=>{
- const f=document.querySelector('input[type=file]').files[0];
- const caption=document.querySelector('input[aria-label="Caption"]').value;
- if(!f){document.querySelector('output').textContent='Choose media';return}
- const r=await fetch('/api/fixture/drafts',{method:'POST',headers:{'Content-Type':'application/json'},
- body:JSON.stringify({caption,filename:f.name})});
- const d=await r.json(); if(!r.ok) throw Error('Draft save failed');
- document.querySelector('output').textContent=JSON.stringify(d);
-});</script></main></body></html>"""
+FIXTURE_HTML = (Path(__file__).resolve().parent.parent / "web" / "fixture.html").read_text()
 
 
 class StrictModel(BaseModel):

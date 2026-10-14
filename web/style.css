@@ -784,3 +784,27 @@ a:focus-visible {
 .run-summary {
   font-family: Arial, sans-serif;
 }
+
+.start-guide {
+  border-top: 1px solid var(--line);
+  padding: 22px 0;
+}
+.start-guide ol {
+  padding-left: 20px;
+  margin: 0;
+  line-height: 1.8;
+}
+.start-guide li {
+  padding: 5px 0;
+  font-size: 13px;
+}
+.start-guide a {
+  font-weight: 600;
+}
+.guide-limit {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.6;
+  max-width: 750px;
+  margin-top: 16px;
+}

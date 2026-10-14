@@ -25,3 +25,7 @@ Hermes plugins run in-process with the user's permissions. The scaffold remains 
 Runtime dependencies are FastAPI, Uvicorn, and Playwright. Test dependencies are pytest and httpx. From the source checkout, install with `python3 -m pip install -e '.[test]'`; install Chromium with `python3 -m playwright install chromium`.
 
 Developer README updated for the preview interfaces and verified limits.
+
+## Practice flow clarity
+
+The practice page is `web/fixture.html`, read by `/fixture`. It offers a harmless sample, explicit validation, a human-readable saved receipt and a retained draft list. The workspace explains the tab switch/record/stop sequence and states that AI analysis is unfinished. The runner consumes the single output JSON only after retention verification.

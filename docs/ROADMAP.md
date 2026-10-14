@@ -26,3 +26,7 @@ This roadmap separates the working preview from ideas that need design and evide
 - Carefully scoped publishing workflows, only after separate authorization and real-account acceptance.
 
 These later ideas are not implemented. There is no current AI video analysis or live social publishing.
+
+## Client portability
+
+Build a shared teaching/procedure engine with MCP tools and thin client skills/adapters. Hermes is the first adapter. Codex, Claude Code and editor integrations require separate installation and end-to-end verification; do not claim support from configuration alone.

@@ -11,7 +11,7 @@ let session = null,
 const prompts = [
   ["account", "Which account or workspace should be selected?"],
   ["done", "What proves the task is finished?"],
-  ["stop", "When should DITTO stop and ask you?"],
+  ["stop", "When should your agent stop and ask you?"],
 ];
 const defaultSteps = [
   {
@@ -451,7 +451,7 @@ $("run").onclick = async () => {
     $("runStatus").textContent = "FAILED";
   } finally {
     b.disabled = false;
-    b.textContent = "Let DITTO try ↗";
+    b.textContent = "Run practice trial ↗";
   }
 };
 async function boot() {

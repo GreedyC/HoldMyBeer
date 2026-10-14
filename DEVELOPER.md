@@ -29,3 +29,5 @@ Developer README updated for the preview interfaces and verified limits.
 ## Practice flow clarity
 
 The practice page is `web/fixture.html`, read by `/fixture`. It offers a harmless sample, explicit validation, a human-readable saved receipt and a retained draft list. The workspace explains the tab switch/record/stop sequence and states that AI analysis is unfinished. The runner consumes the single output JSON only after retention verification.
+
+Branding uses HoldMyBeer and the user’s existing agent. Shared engine/MCP portability is planned; Hermes remains the only current scaffold.

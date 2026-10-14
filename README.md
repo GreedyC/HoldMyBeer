@@ -2,7 +2,7 @@
 
 **Teach your agent by showing it.**
 
-The goal: show an app workflow, let the agent ask questions, then watch it try and improve from your corrections. This first prototype supplies the recording workspace and a reproducible trial engine. HoldMyBeer is an early local preview for teaching and checking browser workflows. DITTO is the name of the teaching companion; Ollie remains the agent identity in the Printery setup.
+The goal: show an app workflow, let the agent ask questions, then watch it try and improve from your corrections. This first prototype supplies the recording workspace and a reproducible trial engine. HoldMyBeer is an early plugin/skill project for teaching and checking browser workflows with the agent you already use. The shared engine is intended to support MCP-compatible clients such as Codex, Claude Code and editor integrations; Hermes is the first adapter. Those additional client integrations are planned, not yet verified.
 
 ## What works today
 
@@ -11,7 +11,7 @@ The goal: show an app workflow, let the agent ask questions, then watch it try a
 - A real Playwright browser trial that runs a fixed practice routine, checks the saved draft, and retains screenshots. Changed controls stop for a reviewed repair.
 - Saved trial history and teaching notes. Edited procedures are not yet executable.
 
-The preview does **not** use AI inference or analyze video with AI, publish to social networks, or provide a production Hermes installation. DITTO currently labels the teaching experience; there is no AI companion behavior yet. Hermes support is an opt-in scaffold with one read-only status tool. The runner exercises the bundled fixture; it does not automate arbitrary websites.
+The preview does **not** use AI inference or analyze video with AI, publish to social networks, or provide a production Hermes installation. Hermes support is an opt-in scaffold with one read-only status tool. The runner exercises the bundled fixture; it does not automate arbitrary websites.
 
 ## Try the local preview
 
@@ -44,9 +44,3 @@ This is an experimental preview. See [DEVELOPER.md](DEVELOPER.md) for the curren
 The next substantial contributions are timestamped browser observations, bounded vision analysis through Hermes, and compiling reviewed teaching notes into executable procedures. Start with the [architecture contract](docs/CONTRACT.md) and [contribution guide](CONTRIBUTING.md). No fine-tuning is required: the reusable artifact is a tested procedure.
 
 See [verified preview evidence](docs/VERIFICATION.md).
-
-## Workspace preview
-
-Actual local teaching interface; the questions shown here are manual prompts.
-
-![HoldMyBeer teaching workspace](docs/images/teaching.jpg)

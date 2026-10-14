@@ -4,7 +4,7 @@ HoldMyBeer supplies local MCP tools; your chosen agent supplies vision and reaso
 
 Install the source checkout in a virtual environment as shown in the README. `ffmpeg` and `ffprobe` must be available on PATH for frame inspection. Install them through your operating system's package manager. Start the workspace separately; MCP does not launch the web server.
 
-Use the absolute path to your environment's `holdmybeer-mcp` executable. These configuration examples follow the clients' documented stdio interfaces. They are examples, not proof that every client has been installed or tested.
+Use the absolute path to your environment's `holdmybeer-mcp` executable. These configuration examples follow the clients' documented stdio interfaces. Codex CLI has an actual temporary-configuration image/proposal receipt below. Claude Code, VS Code, desktop clients and permanent profile installs still need separate checks.
 
 ## Codex
 
@@ -59,3 +59,9 @@ Use [the teaching skill](../skills/teach-workflow/SKILL.md) as the task instruct
 - `hmb_propose_teaching`: save observations, questions and a validated procedure to the local proposal inbox. It cannot execute a procedure or replace the reviewed session.
 
 The user loads a proposal, reviews the exact actions, saves a revision and authorizes the local trial. There is no MCP execution tool. The current executable contract supports only the bundled draft fixture: upload a generated text file under a fresh filename, fill a caption, click an exact button and verify both fields in retained storage.
+
+## Recorded client acceptance
+
+On October 14, 2026, Codex CLI `0.162.0-alpha.17.2`, using Luna and a temporary per-invocation MCP configuration, successfully called session detail, received and interpreted real recording images at two timestamps, and submitted a separate validated proposal. Its report correctly distinguished visible changes from unobserved file selection and independent storage verification. This test did not install a skill or alter saved client settings.
+
+The first noninteractive attempt stopped at the client's approval policy before reading data. The successful invocation explicitly permitted only the three tools needed by the test. Normal clients should present their own tool approval controls; the server supplies read-only/destructive/open-world annotations. This receipt proves that client's image/proposal path, not arbitrary-app execution or all client variants.

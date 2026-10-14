@@ -84,6 +84,19 @@ def test_frame_tool_rejects_outside_symlink_and_invalid_video(recording_store, t
         extract_frames(root, sid, [0])
 
 
+def test_disguised_concat_playlist_cannot_read_other_local_video(recording_store, tmp_path):
+    root, sid, video = recording_store
+    external = tmp_path / "private.mp4"
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "color=c=green:s=320x180:d=1",
+         "-an", "-c:v", "mpeg4", "-y", str(external)],
+        check=True, timeout=15, shell=False,
+    )
+    video.write_text(f"ffconcat version 1.0\nfile '{external}'\n", encoding="utf-8")
+    with pytest.raises(FrameError):
+        extract_frames(root, sid, [0])
+
+
 def test_live_mediasource_webm_without_format_duration_extracts_frames(recording_store):
     root, sid, _ = recording_store
     video = root / "artifacts" / f"{sid}.webm"
@@ -119,6 +132,10 @@ def test_stdio_mcp_lists_tools_and_returns_image_content(recording_store):
                 assert {tool.name for tool in tools.tools} == {
                     "hmb_list_sessions", "hmb_get_session", "hmb_recording_frames", "hmb_propose_teaching"
                 }
+                annotations = {tool.name: tool.annotations for tool in tools.tools}
+                assert annotations["hmb_recording_frames"].readOnlyHint is True
+                assert annotations["hmb_propose_teaching"].readOnlyHint is False
+                assert all(item.destructiveHint is False and item.openWorldHint is False for item in annotations.values())
                 result = await client.call_tool("hmb_recording_frames", {"session_id": sid, "timestamps": [0.5]})
                 assert any(isinstance(block, types.ImageContent) and block.mimeType == "image/png" for block in result.content)
                 proposal = await client.call_tool("hmb_propose_teaching", {

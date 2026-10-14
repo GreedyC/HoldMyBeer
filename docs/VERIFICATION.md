@@ -31,6 +31,8 @@ The earlier table records the initial fixed-routine preview. The next slice now 
 - Actual user-recording frames inspected at 2, 12, 24, 36 and 43 seconds. The clip shows a prior saved receipt, a caption edit and a new matching receipt; initial file selection was outside the observed segment. No invented click sequence was claimed.
 - A proposal with timestamped observations and a focused question loaded into the visible workbook. The new-file default was explicitly marked as a working assumption derived from existing teaching notes.
 - A separately built and installed wheel, tested outside the source import path: workspace assets, reviewed Chromium trial, retained screenshot and four-tool MCP handshake passed.
-- 20 tests passed across backend, MCP and proposal validation, including WebM without duration metadata, unknown actions, corrupt/outside-path media, and proposal isolation from saved procedures.
+- 21 tests passed across backend, MCP and proposal validation, including WebM without duration metadata, unknown actions, corrupt/outside-path media, and proposal isolation from saved procedures.
 
 These checks establish a local fixture teaching loop with the host agent doing the reasoning. They do not establish every client's installation, general website execution or a production Hermes deployment. Private user frames and recordings are excluded from repository evidence.
+
+Codex CLI `0.162.0-alpha.17.2` with Luna and a temporary, narrowly permitted MCP configuration interpreted actual recording images and returned a proposal. No saved client configuration or skill install was changed. Decoder checks additionally reject a disguised playlist pointing at another local recording. GitHub CI passed the first teaching-loop checkpoint, including the installed-wheel browser trial; later hardening is checked in its own run.

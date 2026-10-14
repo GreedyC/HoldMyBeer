@@ -22,10 +22,20 @@ class FrameError(ValueError):
     """A recording could not be safely inspected."""
 
 
+def _demuxer_args(media: Path) -> list[str]:
+    """Pin parsing to the only containers accepted by the upload route."""
+    if media.suffix.lower() == ".webm":
+        return ["-f", "matroska"]
+    if media.suffix.lower() == ".mp4":
+        # MOV external data references can otherwise name other local files.
+        return ["-f", "mov", "-enable_drefs", "0", "-use_absolute_path", "0"]
+    raise FrameError("unsupported recording format")
+
+
 def _scan_packet_timing(media: Path) -> tuple[float, float]:
     """Find the final video packet's start/end without buffering ffprobe output."""
     command = [
-        "ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-select_streams", "v:0",
+        "ffprobe", "-protocol_whitelist", "file,pipe", *_demuxer_args(media), "-v", "error", "-select_streams", "v:0",
         "-show_packets", "-show_entries", "packet=pts_time,duration_time", "-of", "csv=p=0", str(media),
     ]
     try:
@@ -160,7 +170,7 @@ def extract_frames(root: Path, session_id: str, timestamps: list[float]) -> list
     media = _recording(root.resolve(), session_id)
     try:
         probe = subprocess.run(
-            ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-show_entries", "format=duration", "-of", "json", str(media)],
+            ["ffprobe", "-protocol_whitelist", "file,pipe", *_demuxer_args(media), "-v", "error", "-show_entries", "format=duration", "-of", "json", str(media)],
             stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             timeout=MEDIA_TIMEOUT, check=False, shell=False,
         )
@@ -184,7 +194,7 @@ def extract_frames(root: Path, session_id: str, timestamps: list[float]) -> list
         seek_timestamp = min(timestamp, last_seek_time) if last_seek_time is not None else timestamp
         try:
             result = subprocess.run(
-                ["ffmpeg", "-protocol_whitelist", "file,pipe", "-v", "error", "-ss", f"{seek_timestamp:.6f}", "-i", str(media),
+                ["ffmpeg", "-protocol_whitelist", "file,pipe", *_demuxer_args(media), "-v", "error", "-ss", f"{seek_timestamp:.6f}", "-i", str(media),
                  "-frames:v", "1", "-vf", f"scale=w='min({MAX_WIDTH},iw)':h='min({MAX_HEIGHT},ih)':force_original_aspect_ratio=decrease",
                  "-f", "image2pipe", "-vcodec", "png", "pipe:1"],
                 stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,

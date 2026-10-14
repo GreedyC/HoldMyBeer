@@ -44,11 +44,48 @@ class UpdateSession(StrictModel):
 
 
 class RunInput(StrictModel):
-    caption: str = Field(min_length=1, max_length=2000)
-    filename: str = Field(min_length=1, max_length=255)
-    variant: str = Field(pattern="^(normal|changed)$")
-    repair: bool
+    caption: str | None = Field(default=None, min_length=1, max_length=2000)
+    filename: str | None = Field(default=None, min_length=1, max_length=255)
+    variant: str = Field(default="normal", pattern="^(normal|changed)$")
+    repair: bool = False
     mode: Literal["practice", "procedure"] = "practice"
+    media_mode: Literal["new", "reuse"] = "new"
+    existing_draft_id: uuid.UUID | None = None
+    items: list["RunItem"] | None = Field(default=None, min_length=1, max_length=10)
+
+    @model_validator(mode="after")
+    def validate_run_shape(self):
+        if self.items is None:
+            if self.caption is None:
+                raise ValueError("caption is required")
+            if self.media_mode == "new" and self.filename is None:
+                raise ValueError("filename is required for new media")
+            if self.media_mode == "reuse" and self.existing_draft_id is None:
+                raise ValueError("existing_draft_id is required for reused media")
+            if self.media_mode == "reuse" and self.filename is not None:
+                raise ValueError("filename is derived from the retained draft when media is reused")
+            if self.media_mode == "new" and self.existing_draft_id is not None:
+                raise ValueError("existing_draft_id is only valid for reused media")
+        elif self.caption is not None or self.filename is not None or self.existing_draft_id is not None or self.media_mode != "new":
+            raise ValueError("batch items carry their own caption and media selection")
+        return self
+
+
+class RunItem(StrictModel):
+    caption: str = Field(min_length=1, max_length=2000)
+    filename: str | None = Field(default=None, min_length=1, max_length=255)
+    media_mode: Literal["new", "reuse"] = "new"
+    existing_draft_id: uuid.UUID | None = None
+
+    @model_validator(mode="after")
+    def validate_media_selection(self):
+        if self.media_mode == "new" and (self.filename is None or self.existing_draft_id is not None):
+            raise ValueError("new media requires filename and cannot include existing_draft_id")
+        if self.media_mode == "reuse" and self.existing_draft_id is None:
+            raise ValueError("reused media requires existing_draft_id")
+        if self.media_mode == "reuse" and self.filename is not None:
+            raise ValueError("filename is derived from the retained draft when media is reused")
+        return self
 
 
 
@@ -111,6 +148,11 @@ class Store:
     def drafts(self):
         with self.connect() as db:
             return [json.loads(r[0]) for r in db.execute("SELECT data FROM drafts ORDER BY rowid")]
+
+    def get_draft(self, ident: str) -> dict | None:
+        with self.connect() as db:
+            row = db.execute("SELECT data FROM drafts WHERE id=?", (ident,)).fetchone()
+        return json.loads(row[0]) if row else None
 
 
 def create_app(data_dir: Path | None = None) -> FastAPI:
@@ -242,24 +284,60 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         if body.mode == "procedure":
             steps = procedure.get("steps", [])
             actions = [step.get("action") for step in steps]
-            if len(steps) != 4 or actions != ["upload", "fill", "click", "verify_draft"]:
-                raise HTTPException(422, "procedure mode requires upload, fill, click, verify_draft actions in order")
-        filename = _safe_filename(body.filename)
-        run = {"id": str(uuid.uuid4()), "status": "failed", "revision": session["procedure"]["revision"], "caption": body.caption,
-               "filename": filename, "mode": body.mode, "procedure": json.loads(json.dumps(procedure)) if body.mode == "procedure" else None,
-               "steps": [], "failure": None, "screenshot_url": None, "draft_id": None}
-        if not app.state.runner_lock.acquire(blocking=False): raise HTTPException(429, "a browser run is already active")
+            allowed = (["upload", "fill", "click", "verify_draft"], ["select_media", "fill", "click", "verify_draft"])
+            if len(steps) != 4 or actions not in allowed:
+                raise HTTPException(422, "procedure mode requires select_media or upload, fill, click, verify_draft actions in order")
+        items = body.items or [RunItem(caption=body.caption, filename=body.filename, media_mode=body.media_mode, existing_draft_id=body.existing_draft_id)]
+        resolved = []
+        for item in items:
+            if item.media_mode == "reuse":
+                retained = app.state.store.get_draft(str(item.existing_draft_id))
+                if retained is None:
+                    raise HTTPException(404, "existing draft not found")
+                filename = _safe_filename(retained["filename"])
+            else:
+                filename = _safe_filename(item.filename)
+            resolved.append((item, filename))
+        if body.mode == "procedure" and any(item.media_mode == "reuse" for item, _ in resolved) and procedure.get("steps", [{}])[0].get("action") == "upload":
+            raise HTTPException(422, "reused media requires select_media as the first procedure action")
+        if not app.state.runner_lock.acquire(blocking=False):
+            raise HTTPException(429, "a browser run is already active")
         try:
-            try:
-                from .runner import execute
-                result = execute(f"http://127.0.0.1:{request.scope['server'][1]}", app.state.store.artifacts, run["id"], body.caption, filename, body.variant, body.repair,
-                                 body.mode, procedure if body.mode == "procedure" else None)
-                run.update(result)
-            except Exception as exc:
-                run["failure"] = (str(exc) or type(exc).__name__)[:500]
+            runs = []
+            for item, filename in resolved:
+                run = _execute_run(app, request, session, procedure, body, item.caption, filename,
+                                   item.media_mode, item.existing_draft_id)
+                app.state.store.save_run(session_id, run)
+                runs.append(run)
+                if run["status"] != "verified":
+                    break
         finally:
             app.state.runner_lock.release()
-        app.state.store.save_run(session_id, run)
+        if body.items:
+            return {"status": "verified" if len(runs) == len(resolved) and all(r["status"] == "verified" for r in runs) else "failed",
+                    "runs": runs, "completed": len(runs), "attempted": len(runs),
+                    "verified_count": sum(r["status"] == "verified" for r in runs), "requested": len(resolved),
+                    "stopped_on_failure": len(runs) < len(resolved) or any(r["status"] != "verified" for r in runs)}
+        return runs[0]
+
+    def _execute_run(app, request, session, procedure, body, caption, filename, media_mode, existing_draft_id):
+        run_id = str(uuid.uuid4())
+        run = {"id": run_id, "status": "failed", "revision": session["procedure"]["revision"], "caption": caption,
+               "filename": filename, "media_mode": media_mode,
+               "existing_draft_id": str(existing_draft_id) if existing_draft_id else None,
+               "mode": body.mode, "procedure": json.loads(json.dumps(procedure)) if body.mode == "procedure" else None,
+               "steps": [], "failure": None, "screenshot_url": None, "draft_id": None,
+               "inputs": {"caption": caption, "filename": filename, "media_mode": media_mode,
+                          "existing_draft_id": str(existing_draft_id) if existing_draft_id else None,
+                          "variant": body.variant, "repair": body.repair, "mode": body.mode}}
+        try:
+            from .runner import execute
+            result = execute(f"http://127.0.0.1:{request.scope['server'][1]}", app.state.store.artifacts, run_id,
+                             caption, filename, body.variant, body.repair, body.mode,
+                             procedure if body.mode == "procedure" else None, media_mode)
+            run.update(result)
+        except Exception as exc:
+            run["failure"] = (str(exc) or type(exc).__name__)[:500]
         return run
 
     @app.get("/api/sessions/{session_id}/runs/{run_id}")

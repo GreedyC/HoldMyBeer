@@ -91,3 +91,12 @@ def test_unknown_fields_and_oversized_text_are_rejected(store):
     with pytest.raises(ValueError):
         create_proposal(root, sid, [{"timestamp": 0, "text": "ok"}], too_many_questions, procedure())
     assert latest_proposal(root, sid) is None
+
+
+def test_select_media_procedure_is_valid_and_retained(store):
+    root, sid, _ = store
+    selected = procedure(revision=6)
+    selected["steps"][0]["action"] = "select_media"
+    proposal = create_proposal(root, sid, [{"timestamp": 1, "text": "The retained filename was selected."}], [], selected)
+    assert proposal["procedure"]["steps"][0]["action"] == "select_media"
+    assert latest_proposal(root, sid)["id"] == proposal["id"]

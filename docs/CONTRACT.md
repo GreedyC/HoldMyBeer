@@ -24,12 +24,12 @@ A procedure has a positive integer `revision` and at most 20 steps. Every step h
 
 | action | target | input |
 | --- | --- | --- |
-| upload | exact accessible input label | filename |
+| select_media (or legacy upload) | exact accessible input label | filename |
 | fill | exact accessible input label | caption |
 | click | exact accessible button name | absent |
 | verify_draft | absent | absent |
 
-Actions execute in saved order against the bundled fixture. No arbitrary URL, selector, JavaScript or shell command is accepted. Fresh inputs are substituted at execution time. `check` documents expected evidence; it is not evaluated as executable text. Verification compares the returned draft ID and both fresh inputs with retained API storage.
+Actions execute in saved order against the bundled fixture. No arbitrary URL, selector, JavaScript or shell command is accepted. Run inputs are substituted at execution time. `select_media` supports `media_mode: new` or `reuse`. Reuse requires an existing retained fixture draft ID and resolves its filename from storage. Legacy `upload` remains a fresh-file action. `check` documents expected evidence; it is not evaluated as executable text. Verification compares the returned draft ID and the expected filename and caption with retained API storage.
 
 Missing targets stop with `needs_teaching`; no alternate locator is guessed. The repair flag is ignored in procedure mode. A run retains the exact procedure snapshot, mode, revision, steps, failure, draft ID and screenshot URL. Changing saved actions does not alter earlier evidence. Browser interactions have time limits; there is no mid-run cancellation interface yet.
 
@@ -44,3 +44,9 @@ The UI invalidates its review checkbox when actions change. Saving a changed pro
 User answers remain bounded strings. Agent question/observation bundles may use up to 4000 characters; individual answers remain limited to 2000. Selected frames and session text returned through MCP enter the host agent's conversation and follow that host's data handling. HoldMyBeer runs no internal model and makes no independent remote inference requests.
 
 The native Hermes scaffold is separate and status-only. See [client configuration examples](CLIENTS.md) for the shared bridge. Client examples are not end-to-end installation receipts.
+
+## Media items
+
+The trial defaults to one media item. Optional `items` contains one to ten items, each with a caption, filename and media mode. Reuse items require `existing_draft_id`; new items supply a filename. Items execute sequentially and each completed attempt retains its own receipt. The batch stops at the first failed item. Remaining items are not executed.
+
+The fixture stores filenames and captions, not original file contents. Reuse reconstructs a harmless generated fixture file with the retained filename in the isolated browser. It does not inherit another browser tab's file selection or reuse real video bytes.

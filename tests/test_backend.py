@@ -164,3 +164,49 @@ def test_proposal_inbox_does_not_apply_agent_actions(server):
     assert httpx.get(url + '/proposal').json()['proposal']['id'] == p['id']
     assert httpx.get(url).json()['procedure']['steps'] == []
     assert httpx.get(base + '/api/sessions/missing/proposal').status_code == 404
+
+
+def test_select_media_new_then_reuse_retained_filename_in_real_browser(server):
+    base, _ = server
+    session = httpx.post(base + "/api/sessions", json={"title": "Blended media"}).json()
+    procedure = {"revision": 1, "steps": [
+        {"goal": "Choose media", "check": "File is selected", "action": "select_media", "target": "Media", "input": "filename"},
+        {"goal": "Enter caption", "check": "Caption is entered", "action": "fill", "target": "Caption", "input": "caption"},
+        {"goal": "Save draft", "check": "Draft is submitted", "action": "click", "target": "Save draft"},
+        {"goal": "Confirm saved draft", "check": "Draft is retained", "action": "verify_draft"},
+    ]}
+    assert httpx.put(base + f"/api/sessions/{session['id']}", json={"procedure": procedure}).status_code == 200
+    url = base + f"/api/sessions/{session['id']}/run"
+    new = httpx.post(url, json={"caption": "First caption", "filename": "retained-art.mp4", "variant": "normal", "repair": False, "mode": "procedure"}).json()
+    assert new["status"] == "verified", new
+    assert "generated harmless fixture bytes" in new["steps"][0]["evidence"]
+    reused = httpx.post(url, json={"caption": "Updated caption", "media_mode": "reuse", "existing_draft_id": new["draft_id"], "variant": "normal", "repair": False, "mode": "procedure"}).json()
+    assert reused["status"] == "verified", reused
+    assert reused["filename"] == "retained-art.mp4"
+    assert reused["inputs"]["filename"] == "retained-art.mp4"
+    assert reused["media_mode"] == "reuse"
+    assert "Reuse simulated fixture file" in reused["steps"][0]["evidence"]
+    assert "generated harmless fixture bytes" in reused["steps"][0]["evidence"]
+    assert httpx.post(url, json={"caption": "No arbitrary name", "filename": "guess.mp4", "media_mode": "reuse", "existing_draft_id": new["draft_id"], "variant": "normal", "repair": False}).status_code == 422
+
+
+def test_batch_runs_stop_after_first_failure_and_return_individual_receipts(server):
+    base, _ = server
+    session = httpx.post(base + "/api/sessions", json={"title": "Batch run"}).json()
+    response = httpx.post(base + f"/api/sessions/{session['id']}/run", json={
+        "variant": "changed", "repair": False,
+        "items": [
+            {"caption": "Will need teaching", "filename": "first.mp4"},
+            {"caption": "Must not run", "filename": "second.mp4"},
+        ],
+    })
+    assert response.status_code == 200
+    batch = response.json()
+    assert batch["status"] == "failed"
+    assert batch["requested"] == 2
+    assert batch["attempted"] == batch["completed"] == 1
+    assert batch["verified_count"] == 0
+    assert batch["stopped_on_failure"] is True
+    assert len(batch["runs"]) == 1
+    assert batch["runs"][0]["status"] == "needs_teaching"
+    assert batch["runs"][0]["inputs"]["filename"] == "first.mp4"

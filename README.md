@@ -10,7 +10,8 @@ The goal: show an app workflow, let the agent ask questions, then watch it try a
 
 - Screen-capture controls using the browser picker (window/tab choice needs a manual compatibility check); verified video import and playback.
 - Manual teaching notes, questions, and editable procedure steps.
-- Reviewed executable actions drive a real Playwright trial with fresh inputs. Changed controls stop; editing the action target and saving a new revision repairs the workflow. Retained draft checks and screenshots supply evidence.
+- Reviewed executable actions drive a real Playwright trial with supplied captions and new or reused fixture files. Changed controls stop; editing the action target and saving a new revision repairs the workflow. Retained draft checks and screenshots supply evidence.
+- One media item by default, with an optional queue of up to ten items. Reuse selects a retained fixture draft; each item gets its own receipt, and a failure stops the queue. The fixture reconstructs generated text files by filename; original video bytes are not retained.
 - Saved procedure snapshots and trial history, plus a same-page practice task.
 - MCP tools return selected recording frames to your existing agent and place its observations, questions and validated procedure in a local review inbox.
 

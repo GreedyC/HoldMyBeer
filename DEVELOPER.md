@@ -10,7 +10,7 @@ python3 -m uvicorn holdmybeer.app:app --host 127.0.0.1 --port 18940
 
 Runtime recordings, proposals, SQLite data and screenshots belong outside the checkout under `HMB_DATA_DIR` (default `~/.local/share/holdmybeer`). No Printery service, LAN URL or managed deployment is configured by this repo. The current interface contract is [docs/CONTRACT.md](docs/CONTRACT.md).
 
-`holdmybeer/models.py` owns shared procedure validation. Saved executable fixture actions drive procedure trials with fresh inputs. Runs snapshot the exact procedure revision so later corrections cannot alter earlier evidence. Notes-only legacy sessions remain readable; legacy practice mode remains available through the API. The UI uses procedure mode and requires review.
+`holdmybeer/models.py` owns shared procedure validation. Saved executable fixture actions drive procedure trials with supplied captions and new or reused fixture media. Runs snapshot the exact procedure revision so later corrections cannot alter earlier evidence. Notes-only legacy sessions remain readable; legacy practice mode remains available through the API. The UI uses procedure mode and requires review.
 
 `proposals.py` writes separate review-only files. `GET /api/sessions/{id}/proposal` returns the latest valid proposal without applying it. Loading, saving a reviewed revision and running are separate user actions. Agent questions/observations and user answers persist in bounded answer bundles. The original recording stays intact.
 
@@ -35,3 +35,7 @@ Run `pytest -q`, `node --check web/app.js` and `python -m compileall -q holdmybe
 This alpha executes only the bundled four-action fixture. Arbitrary websites, live publishing, mid-run cancellation, a managed production service and independent client/platform acceptance are unfinished. Track those gates in [docs/STATUS.md](docs/STATUS.md).
 
 Developer README updated for the procedure, proposal, MCP and packaging interfaces.
+
+## Blended media trials
+
+`select_media` is the preferred first action and accepts new/reuse modes; legacy `upload` procedures remain valid. Reuse resolves a retained fixture draft ID, preserving its filename while reconstructing generated fixture bytes. Run input snapshots retain this distinction. Optional bounded batches run sequentially, retain individual receipts and stop on the first failed item. The workspace keeps one item as the default. This is fixture-only file reuse, not retained original media.

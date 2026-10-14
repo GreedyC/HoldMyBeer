@@ -13,7 +13,7 @@ class CreateSession(StrictModel):
 class ProcedureStep(StrictModel):
     goal: str = Field(min_length=1, max_length=500)
     check: str = Field(min_length=1, max_length=1000)
-    action: Literal["upload", "fill", "click", "verify_draft"] | None = None
+    action: Literal["upload", "select_media", "fill", "click", "verify_draft"] | None = None
     target: str | None = Field(default=None, min_length=1, max_length=200)
     input: Literal["filename", "caption"] | None = None
 
@@ -27,6 +27,7 @@ class ProcedureStep(StrictModel):
             return self
         required = {
             "upload": (True, "filename"),
+            "select_media": (True, "filename"),
             "fill": (True, "caption"),
             "click": (True, None),
             "verify_draft": (False, None),
@@ -43,6 +44,6 @@ class Procedure(StrictModel):
     @model_validator(mode="after")
     def validate_executable_order(self):
         actions = [step.action for step in self.steps if step.action is not None]
-        if actions and actions != ["upload", "fill", "click", "verify_draft"]:
-            raise ValueError("executable procedure actions must be upload, fill, click, verify_draft in order")
+        if actions and actions not in (["upload", "fill", "click", "verify_draft"], ["select_media", "fill", "click", "verify_draft"]):
+            raise ValueError("executable procedure actions must select_media or upload, then fill, click, verify_draft in order")
         return self

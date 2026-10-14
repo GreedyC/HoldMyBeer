@@ -7,7 +7,8 @@ from pathlib import Path
 
 
 def execute(base_url: str, artifacts: Path, run_id: str, caption: str, filename: str,
-            variant: str, repair: bool, mode: str = "practice", procedure: dict | None = None) -> dict:
+            variant: str, repair: bool, mode: str = "practice", procedure: dict | None = None,
+            media_mode: str = "new") -> dict:
     """Exercise the local fixture in the installed Playwright Chromium browser."""
     from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
 
@@ -36,9 +37,17 @@ def execute(base_url: str, artifacts: Path, run_id: str, caption: str, filename:
                         page.set_default_timeout(min(2200, remaining))
                         action = step["action"]
                         try:
-                            if action == "upload":
-                                page.get_by_label(step["target"], exact=True).set_input_files({"name": filename, "mimeType": "text/plain", "buffer": upload_path.read_bytes()})
-                                evidence = f"File input received {filename}"
+                            if action in {"upload", "select_media"}:
+                                media = page.get_by_label(step["target"], exact=True)
+                                if action == "select_media" and media_mode == "reuse":
+                                    media.set_input_files({"name": filename, "mimeType": "text/plain", "buffer": upload_path.read_bytes()})
+                                    selected = media.evaluate("el => el.files.length ? el.files[0].name : null")
+                                    if selected != filename:
+                                        raise RuntimeError("retained filename was not selected in the simulated fixture input")
+                                    evidence = f"Reuse simulated fixture file selected from retained draft: {filename}; contents are generated harmless fixture bytes"
+                                else:
+                                    media.set_input_files({"name": filename, "mimeType": "text/plain", "buffer": upload_path.read_bytes()})
+                                    evidence = f"New simulated fixture file selected: {filename}; contents are generated harmless fixture bytes"
                             elif action == "fill":
                                 page.get_by_label(step["target"], exact=True).fill(caption)
                                 evidence = "Caption field contains requested text"
@@ -64,8 +73,13 @@ def execute(base_url: str, artifacts: Path, run_id: str, caption: str, filename:
                         result.update(status="verified", draft_id=payload["id"])
                 else:
                     steps.append({"goal": "Open local fixture", "status": "passed", "evidence": "Fixture page loaded in bundled Chromium"})
-                    page.get_by_label("Media").set_input_files({"name": filename, "mimeType": "text/plain", "buffer": upload_path.read_bytes()})
-                    steps.append({"goal": "Upload selected file", "status": "passed", "evidence": f"File input received {filename}"})
+                    media = page.get_by_label("Media")
+                    media.set_input_files({"name": filename, "mimeType": "text/plain", "buffer": upload_path.read_bytes()})
+                    selected = media.evaluate("el => el.files.length ? el.files[0].name : null")
+                    if selected != filename:
+                        raise RuntimeError("simulated fixture file was not selected")
+                    media_evidence = ("Reuse simulated fixture file selected from retained draft" if media_mode == "reuse" else "New simulated fixture file selected")
+                    steps.append({"goal": "Select media", "status": "passed", "evidence": f"{media_evidence}: {filename}; contents are generated harmless fixture bytes"})
                     page.get_by_label("Caption").fill(caption)
                     steps.append({"goal": "Fill caption", "status": "passed", "evidence": "Caption field contains requested text"})
                     if variant == "normal":

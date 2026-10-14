@@ -101,8 +101,8 @@ def _proposal_from_input(session_id: str, observations: list[dict], questions: l
     except ValidationError:
         raise ValueError("invalid teaching proposal payload") from None
     actions = [step.action for step in proposal.procedure.steps]
-    if actions != ["upload", "fill", "click", "verify_draft"]:
-        raise ValueError("proposal procedure must contain exactly upload, fill, click, verify_draft actions in order")
+    if actions not in (["upload", "fill", "click", "verify_draft"], ["select_media", "fill", "click", "verify_draft"]):
+        raise ValueError("proposal procedure must contain select_media or upload, fill, click, verify_draft actions in order")
     return proposal
 
 
@@ -122,7 +122,7 @@ def _validated_file(path: Path, session_id: str) -> dict[str, Any] | None:
         proposal = TeachingProposal.model_validate_json(resolved.read_text(encoding="utf-8"))
         if proposal.session_id != session_id or proposal.id != path.name.split(".")[1]:
             return None
-        if [step.action for step in proposal.procedure.steps] != ["upload", "fill", "click", "verify_draft"]:
+        if [step.action for step in proposal.procedure.steps] not in (["upload", "fill", "click", "verify_draft"], ["select_media", "fill", "click", "verify_draft"]):
             return None
         return proposal.model_dump(mode="json")
     except (OSError, ValueError):

@@ -1,5 +1,7 @@
 const $ = (id) => document.getElementById(id);
 let dirty = false;
+let queuedItems = [];
+let reusableDrafts = [];
 let session = null,
   sessions = [],
   moments = [],
@@ -16,7 +18,7 @@ const basePrompts = [
 let prompts = [...basePrompts];
 const defaultSteps = [];
 const practiceSteps = [
-  {goal: "Upload the new file", check: "Media receives the fresh filename", action: "upload", target: "Media", input: "filename"},
+  {goal: "Select the requested media", check: "Media receives the requested filename", action: "select_media", target: "Media", input: "filename"},
   {goal: "Enter the supplied caption", check: "Caption contains fresh text", action: "fill", target: "Caption", input: "caption"},
   {goal: "Save the draft", check: "Saved receipt appears", action: "click", target: "Save draft"},
   {goal: "Verify retained draft", check: "Draft id and both inputs match retained storage", action: "verify_draft"},
@@ -28,7 +30,7 @@ function collectSteps() {
     if (action) {
       step.action = action;
       if (action !== "verify_draft") step.target = d.querySelector('[data-field="target"]').value;
-      if (action === "upload") step.input = "filename";
+      if (action === "upload" || action === "select_media") step.input = "filename";
       if (action === "fill") step.input = "caption";
     }
     return step;
@@ -128,7 +130,7 @@ function renderSteps() {
     const action = document.createElement("select");
     action.id = label.htmlFor;
     action.dataset.field = "action";
-    for (const [value, name] of [["", "Notes only"], ["upload", "Upload fresh file"], ["fill", "Fill fresh caption"], ["click", "Click exact button"], ["verify_draft", "Verify retained draft"]]) {
+    for (const [value, name] of [["", "Notes only"], ["select_media", "Select media by filename"], ["upload", "Upload fresh file (legacy)"], ["fill", "Fill fresh caption"], ["click", "Click exact button"], ["verify_draft", "Verify retained draft"]]) {
       const option = textEl("option", name); option.value = value; action.append(option);
     }
     action.value = step.action || "";
@@ -184,10 +186,9 @@ function renderMoments() {
     box.append(row);
   });
 }
-function renderRun(run) {
-  $("runStatus").textContent = run.status.replaceAll("_", " ").toUpperCase();
-  const box = $("results");
-  box.replaceChildren();
+function renderSingleRun(run, box = $("results"), includeStatus = true) {
+  if (includeStatus) $("runStatus").textContent = (run.status || "unknown").replaceAll("_", " ").toUpperCase();
+  if (includeStatus) box.replaceChildren();
   box.append(
     textEl(
       "div",
@@ -200,7 +201,7 @@ function renderRun(run) {
     ),
   );
   if (run.failure) box.append(textEl("div", run.failure, "failure"));
-  for (const step of run.steps) {
+  for (const step of run.steps || []) {
     const row = textEl("div", "", "run-step");
     row.append(textEl("span", step.status === "passed" ? "✓" : "↳", "tick"));
     const body = document.createElement("div");
@@ -219,10 +220,35 @@ function renderRun(run) {
   if (run.screenshot_url) {
     const img = document.createElement("img");
     img.className = "run-image";
-    img.src = run.screenshot_url;
+    try {
+      const screenshot = new URL(run.screenshot_url, location.href);
+      if (screenshot.origin !== location.origin) return;
+      img.src = screenshot.href;
+    } catch { return; }
     img.alt = "Actual browser screenshot from this trial";
     box.append(img);
   }
+}
+function renderRun(run) {
+  const box = $("results");
+  box.replaceChildren();
+  const batchRuns = Array.isArray(run.runs) ? run.runs : run.items;
+  if (Array.isArray(batchRuns)) {
+    $("runStatus").textContent = (run.status || "completed").replaceAll("_", " ").toUpperCase();
+    const attempted = Number.isInteger(run.completed) ? run.completed : batchRuns.length;
+    const requested = Number.isInteger(run.requested) ? run.requested : batchRuns.length;
+    const stopped = Boolean(run.stopped_on_failure);
+    const summary = `${attempted} of ${requested} items attempted${stopped ? " · stopped after a failure" : ""}`;
+    box.append(textEl("div", summary, "run-summary"));
+    batchRuns.forEach((item, index) => {
+      const section = textEl("section", "", "batch-item");
+      section.append(textEl("h4", `Item ${index + 1} · ${item.filename || "Media"}`));
+      renderSingleRun(item.run || item, section, false);
+      box.append(section);
+    });
+    return;
+  }
+  renderSingleRun(run);
 }
 async function selectSession(id) {
   if (dirty && session) {
@@ -239,6 +265,7 @@ async function selectSession(id) {
   }
   try {
     session = await api(`/api/sessions/${id}`);
+    queuedItems = []; renderQueue();
     dirty = false;
     $("title").value = session.title;
     $("notes").value = session.notes || "";
@@ -277,6 +304,75 @@ async function selectSession(id) {
   } catch (e) {
     toast(e.message);
   }
+}
+async function loadReusableDrafts() {
+  const oldId = reusableDrafts[Number($("existingDraft").value)]?.id;
+  const oldCaption = $("caption").value;
+  try {
+    const data = await api("/api/fixture/drafts");
+    reusableDrafts = Array.isArray(data.drafts) ? data.drafts : [];
+  } catch (e) {
+    reusableDrafts = [];
+    toast(`Could not load saved media: ${e.message}`);
+  }
+  const select = $("existingDraft");
+  select.replaceChildren();
+  reusableDrafts.forEach((draft, i) => {
+    const opt = document.createElement("option");
+    opt.value = String(i);
+    opt.textContent = `${draft.filename || "(no filename)"} — ${draft.caption || "(no caption)"}`;
+    select.append(opt);
+  });
+  const oldIndex = reusableDrafts.findIndex(draft => draft.id === oldId);
+  if (oldIndex >= 0) select.value = String(oldIndex);
+  syncMediaMode();
+  $("caption").value = oldCaption;
+}
+function syncMediaMode() {
+  const reuse = $("mediaMode").value === "reuse";
+  $("existingDraft").hidden = $("existingDraftLabel").hidden = !reuse;
+  $("filename").disabled = reuse;
+  $("mediaHelp").textContent = reuse
+    ? "The fixture reconstructs a generated media file from its saved filename. It does not retain real video content."
+    : "The fixture creates a generated text file. This is not video-platform acceptance.";
+  if (reuse) syncDraftFields();
+  $("reviewed").checked = false;
+}
+function syncDraftFields() {
+  if ($("mediaMode").value !== "reuse") return;
+  const draft = reusableDrafts[Number($("existingDraft").value)];
+  if (!draft) return;
+  $("filename").value = draft.filename || "";
+  $("caption").value = draft.caption || "";
+  $("reviewed").checked = false;
+}
+function currentItem() {
+  const reuse = $("mediaMode").value === "reuse";
+  const draft = reuse ? reusableDrafts[Number($("existingDraft").value)] : null;
+  return {
+    caption: $("caption").value,
+    filename: reuse ? (draft?.filename || $("filename").value) : $("filename").value,
+    media_mode: reuse ? "reuse" : "new",
+    ...(reuse && draft ? { existing_draft_id: draft.id } : {}),
+  };
+}
+function runItemPayload(item) {
+  if (item.media_mode !== "reuse") return item;
+  const {filename, ...payload} = item;
+  return payload;
+}
+function renderQueue() {
+  const box = $("itemQueue"); box.replaceChildren();
+  queuedItems.forEach((item, i) => {
+    const row = textEl("div", "", "run-step");
+    const details = `${item.filename} · ${item.caption.slice(0, 60)} · ${item.media_mode}`;
+    row.append(textEl("span", `${i + 1}.`, "tick"), textEl("span", details));
+    const remove = textEl("button", "Remove", "quiet"); remove.type = "button";
+    remove.onclick = () => { queuedItems.splice(i, 1); renderQueue(); $("reviewed").checked = false; };
+    row.append(remove); box.append(row);
+  });
+  $("addItem").disabled = queuedItems.length >= 10;
+  $("addItem").textContent = queuedItems.length >= 10 ? "Queue limit reached (10)" : "+ Add item to run";
 }
 async function refresh() {
   sessions = (await api("/api/sessions")).sessions;
@@ -450,25 +546,33 @@ $("run").onclick = async () => {
   b.textContent = "Browser trial running…";
   $("runStatus").textContent = "RUNNING";
   $("results").replaceChildren(
-    textEl("p", "Opening the practice app and checking fresh inputs…", "empty"),
+    textEl("p", queuedItems.length ? `Opening the practice app for ${queuedItems.length} queued item${queuedItems.length === 1 ? "" : "s"}…` : "Opening the practice app and checking the selected inputs…", "empty"),
   );
   try {
     await save();
-    const run = await api(`/api/sessions/${session.id}/run`, {
+    const item = currentItem();
+    if (!queuedItems.length && $("mediaMode").value === "reuse" && !item.existing_draft_id) throw Error("Choose a saved draft before running in reuse mode.");
+    const payload = {
+      ...(queuedItems.length ? { items: queuedItems.map(runItemPayload) } : runItemPayload(item)),
+      variant: $("variant").value,
+      repair: false,
+      mode: "procedure",
+    };
+    const result = await api(`/api/sessions/${session.id}/run`, {
       method: "POST",
-      body: JSON.stringify({
-        caption: $("caption").value,
-        filename: $("filename").value,
-        variant: $("variant").value,
-        repair: false,
-        mode: "procedure",
-      }),
+      body: JSON.stringify(payload),
     });
-    session.runs.push(run);
+    // Reload the canonical session so history reflects every per-item receipt.
+    session = await api(`/api/sessions/${session.id}`);
+    queuedItems = result.stopped_on_failure
+      ? queuedItems.slice(Number.isInteger(result.verified_count) ? result.verified_count : 0)
+      : [];
+    renderQueue();
     renderHistory();
-    renderRun(run);
+    renderRun(result);
+    await loadReusableDrafts();
     toast(
-      run.status === "verified"
+      result.status === "verified"
         ? "Draft verified in retained storage."
         : "Trial stopped. Review the evidence.",
     );
@@ -498,7 +602,22 @@ async function boot() {
 }
 boot();
 
+$("mediaMode").onchange = syncMediaMode;
+$("existingDraft").onchange = syncDraftFields;
+$("addItem").onclick = () => {
+  if (queuedItems.length >= 10) return;
+  const item = currentItem();
+  if (!item.filename.trim() || !item.caption.trim()) { toast("Add a filename and caption before queueing this item."); return; }
+  if (item.media_mode === "reuse" && !item.existing_draft_id) { toast("Choose a saved draft before queueing this item."); return; }
+  queuedItems.push(item);
+  renderQueue();
+  $("reviewed").checked = false;
+  toast(`${queuedItems.length} item${queuedItems.length === 1 ? "" : "s"} queued. Add up to 10.`);
+};
+loadReusableDrafts();
+
 document.addEventListener("input", (e) => {
+  if (["filename", "caption", "variant"].includes(e.target.id)) $("reviewed").checked = false;
   if (
     ["title", "notes"].includes(e.target.id) ||
     e.target.closest("#questions,#steps")
@@ -542,7 +661,7 @@ $("importProcedure").onchange = async e => {
     const proposal = JSON.parse(await file.text());
     if (!Array.isArray(proposal.steps) || proposal.steps.length > 20) throw Error("Expected a procedure with up to 20 steps.");
     if (proposal.steps.some(step => !step || typeof step.goal !== "string" || typeof step.check !== "string" || (step.target != null && typeof step.target !== "string"))) throw Error("Each step needs text goal, check and optional target.");
-    if (proposal.steps.some(step => step.action && !["upload", "fill", "click", "verify_draft"].includes(step.action))) throw Error("Unsupported action. Use upload, fill, click or verify_draft.");
+    if (proposal.steps.some(step => step.action && !["upload", "select_media", "fill", "click", "verify_draft"].includes(step.action))) throw Error("Unsupported action. Use select_media, upload, fill, click or verify_draft.");
     session.procedure.steps = proposal.steps; dirty = true; renderSteps(); setTab("teach");
     toast("Agent proposal imported for review. Nothing has run.");
   } catch (error) { toast(error.message); }

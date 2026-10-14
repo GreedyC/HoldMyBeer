@@ -192,11 +192,16 @@
         <section id="test" class="tab-panel" hidden>
           <div class="trial-grid">
             <div>
-              <p class="eyebrow">A FRESH INPUT. A REAL ATTEMPT.</p>
+              <p class="eyebrow">YOUR INPUTS. A REAL ATTEMPT.</p>
               <h2>Trust the result.<br />Check the evidence.</h2>
               <p class="muted">
-                This trial executes your reviewed revision in a real browser with fresh inputs. It is limited to the local practice app.
+                This trial executes your reviewed revision in a real browser with the media choice and caption you supply. It is limited to the local practice app.
               </p>
+              <label for="mediaMode">Media source</label
+              ><select id="mediaMode"><option value="new">Use new fixture media</option><option value="reuse">Reuse a saved draft’s media</option></select>
+              <label for="existingDraft" id="existingDraftLabel" hidden>Saved draft media</label>
+              <select id="existingDraft" hidden aria-label="Saved draft media"></select>
+              <small id="mediaHelp" class="trial-note">The fixture creates a generated text file. Reused media is reconstructed from its filename; the fixture does not retain a real video.</small>
               <label for="filename">New file name</label
               ><input id="filename" value="second-product-demo.txt" /><label
                 for="caption"
@@ -209,13 +214,14 @@ A fresh example, prepared for review.</textarea
                 <option value="changed">
                   Changed button label — expect a teaching stop
                 </option></select
-              ><label class="check"
+              ><button class="quiet" id="addItem" type="button">+ Add item to run</button>
+              <div id="itemQueue" aria-live="polite"></div>
+              <label class="check"
                 ><input type="checkbox" id="reviewed" /> I reviewed these actions and authorize this local trial</label
               ><button class="primary" id="run">
                 Run reviewed procedure <span>↗</span></button
               ><small class="trial-note"
-                >The fixture uploads a generated text file to test the flow.
-                This is not video-platform acceptance.</small
+                >Runs are manual and require reviewed actions. This is not video-platform acceptance.</small
               >
             </div>
             <div class="evidence-pane">

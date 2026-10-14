@@ -1,6 +1,6 @@
 # Implementation checkpoint
 
-Working local alpha: single-page practice/recording workspace; timestamped video frames through stdio MCP; agent proposal inbox with observations/questions; reviewed four-action fixture execution; fresh inputs; retained result checks; failures, repairs and immutable trial snapshots.
+Working local alpha: single-page practice/recording workspace; timestamped video frames through stdio MCP; agent proposal inbox with observations/questions; reviewed four-action fixture execution; new/reused fixture media and optional queues of up to ten items; retained result checks; failures, repairs and immutable trial snapshots.
 
 Verified through tests: session persistence, input validation, media preservation, loopback boundaries, normal/changed/corrected real-browser trials, actual stdio MCP handshake/image/proposal responses, and MediaRecorder WebM without duration metadata.
 

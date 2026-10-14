@@ -1,11 +1,11 @@
 # Implementation checkpoint
 
-Public preview: recording workspace, persistent teaching workbook, fixed browser-fixture trials, reviewed locator repair, and a read-only Hermes plugin scaffold.
+Working local alpha: single-page practice/recording workspace; timestamped video frames through stdio MCP; agent proposal inbox with observations/questions; reviewed four-action fixture execution; fresh inputs; retained result checks; failures, repairs and immutable trial snapshots.
 
-Verified: decoded video import, retained timestamp notes and answers, normal/stopped/repaired browser trials, stored evidence and trial history, backend test suite.
+Verified through tests: session persistence, input validation, media preservation, loopback boundaries, normal/changed/corrected real-browser trials, actual stdio MCP handshake/image/proposal responses, and MediaRecorder WebM without duration metadata.
 
-Not verified or implemented: manual screen-picker compatibility, AI frame analysis, executing authored procedures, production Hermes installation, arbitrary websites, social publishing.
+The original user's recording was inspected through MCP. It shows an existing saved draft, a caption edit, and a new matching saved receipt. This establishes useful frame evidence, not a complete observation of every initial click.
 
-Next slice: capture timestamped browser observations and use an explicitly configured vision model to produce evidence-linked questions. Freeze that schema before delegating the UI and model bridge separately.
+Production gates remaining: independent named-client installation and image reasoning receipt; a task beyond the fixture; richer action/success-check contracts; cancellation; supported-platform packaging checks; private data lifecycle and upgrade tests; independent pilot users. No live social publishing or production Hermes installation is claimed.
 
-Development used two bounded Luna workers for backend and contributor/plugin files, with independent integration and browser checks. No measured token or dollar savings are claimed.
+Development uses bounded Luna workers for implementation and tests, with parent integration and visible browser acceptance. No token/dollar savings have been measured.

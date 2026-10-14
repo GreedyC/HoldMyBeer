@@ -108,6 +108,7 @@
       </section>
     </main>
     <script>
+      if (new URLSearchParams(location.search).get("embedded") === "1") document.querySelector("header").hidden = true;
       const file = document.getElementById("file"),
         caption = document.getElementById("caption"),
         save = document.getElementById("saveDraft"),

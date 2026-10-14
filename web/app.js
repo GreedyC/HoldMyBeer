@@ -8,25 +8,32 @@ let session = null,
   chunks = [],
   recordingStarted = 0,
   timer = null;
-const prompts = [
+const basePrompts = [
   ["account", "Which account or workspace should be selected?"],
   ["done", "What proves the task is finished?"],
   ["stop", "When should your agent stop and ask you?"],
 ];
-const defaultSteps = [
-  {
-    goal: "Upload the new file",
-    check: "File input shows the requested filename",
-  },
-  {
-    goal: "Enter the supplied caption",
-    check: "Caption matches the input exactly",
-  },
-  {
-    goal: "Save the draft",
-    check: "Saved draft appears in the retained draft list",
-  },
+let prompts = [...basePrompts];
+const defaultSteps = [];
+const practiceSteps = [
+  {goal: "Upload the new file", check: "Media receives the fresh filename", action: "upload", target: "Media", input: "filename"},
+  {goal: "Enter the supplied caption", check: "Caption contains fresh text", action: "fill", target: "Caption", input: "caption"},
+  {goal: "Save the draft", check: "Saved receipt appears", action: "click", target: "Save draft"},
+  {goal: "Verify retained draft", check: "Draft id and both inputs match retained storage", action: "verify_draft"},
 ];
+function collectSteps() {
+  return [...$("steps").querySelectorAll(".step")].map(d => {
+    const step = {goal: d.querySelector('[data-field="goal"]').value, check: d.querySelector('[data-field="check"]').value};
+    const action = d.querySelector('[data-field="action"]').value;
+    if (action) {
+      step.action = action;
+      if (action !== "verify_draft") step.target = d.querySelector('[data-field="target"]').value;
+      if (action === "upload") step.input = "filename";
+      if (action === "fill") step.input = "caption";
+    }
+    return step;
+  });
+}
 function toast(message) {
   $("toast").textContent = message;
   $("toast").classList.add("show");
@@ -116,6 +123,26 @@ function renderSteps() {
       inp.value = step[field] || "";
       d.append(l, inp);
     }
+    const label = textEl("label", "EXECUTABLE ACTION");
+    label.htmlFor = `step-${i}-action`;
+    const action = document.createElement("select");
+    action.id = label.htmlFor;
+    action.dataset.field = "action";
+    for (const [value, name] of [["", "Notes only"], ["upload", "Upload fresh file"], ["fill", "Fill fresh caption"], ["click", "Click exact button"], ["verify_draft", "Verify retained draft"]]) {
+      const option = textEl("option", name); option.value = value; action.append(option);
+    }
+    action.value = step.action || "";
+    const targetLabel = textEl("label", "EXACT LABEL / BUTTON NAME");
+    targetLabel.htmlFor = `step-${i}-target`;
+    const target = document.createElement("input"); target.id = targetLabel.htmlFor;
+    target.dataset.field = "target"; target.value = step.target || "";
+    const updateTarget = () => { target.disabled = !action.value || action.value === "verify_draft"; $("reviewed").checked = false; };
+    action.onchange = updateTarget;
+    updateTarget();
+    const remove = textEl("button", "Remove step", "quiet");
+    remove.type = "button";
+    remove.onclick = () => { session.procedure.steps = collectSteps().filter((_, n) => n !== i); dirty = true; renderSteps(); };
+    d.append(label, action, targetLabel, target, remove);
     box.append(d);
   }
   $("revision").textContent = session.procedure?.revision || 1;
@@ -185,7 +212,7 @@ function renderRun(run) {
     box.append(
       textEl(
         "div",
-        `Retained draft: ${run.draft_id} · Fixed practice routine v1`,
+        `Retained draft: ${run.draft_id} · ${run.mode === "procedure" ? "Reviewed revision " + run.revision : "Legacy practice routine"}`,
         "receipt",
       ),
     );
@@ -220,7 +247,12 @@ async function selectSession(id) {
     } catch {
       moments = [];
     }
+    try {
+      const proposedQuestions = JSON.parse(session.answers?.agent_questions || "[]");
+      prompts = [...basePrompts, ...proposedQuestions.map(q => ["agent-" + q.id, q.question])];
+    } catch { prompts = [...basePrompts]; }
     renderNav();
+    renderObservations();
     renderQuestions();
     renderSteps();
     renderMoments();
@@ -253,7 +285,7 @@ async function refresh() {
 async function newSession() {
   try {
     if (dirty) await save();
-    const title = window.prompt("Name this workflow", "Prepare a video draft");
+    const title = "New workflow";
     if (!title?.trim()) return;
     const s = await api("/api/sessions", {
       method: "POST",
@@ -270,10 +302,7 @@ async function save(revision = false) {
   if (!session) return;
   const answers = { ...session.answers, moments: JSON.stringify(moments) };
   for (const [key] of prompts) answers[key] = $(`answer-${key}`).value;
-  const steps = [...$("steps").querySelectorAll(".step")].map((d) => ({
-    goal: d.querySelector('[data-field="goal"]').value,
-    check: d.querySelector('[data-field="check"]').value,
-  }));
+  const steps = collectSteps();
   session = await api(`/api/sessions/${session.id}`, {
     method: "PUT",
     body: JSON.stringify({
@@ -281,7 +310,7 @@ async function save(revision = false) {
       notes: $("notes").value,
       answers,
       procedure: {
-        revision: (session.procedure?.revision || 1) + (revision ? 1 : 0),
+        revision: (session.procedure?.revision || 1) + (revision || JSON.stringify(steps) !== JSON.stringify(session.procedure?.steps || [], (key, value) => value === null ? undefined : value) ? 1 : 0),
         steps,
       },
     }),
@@ -295,12 +324,7 @@ async function save(revision = false) {
 $("save").onclick = () => save().catch((e) => toast(e.message));
 $("saveProcedure").onclick = () => save(true).catch((e) => toast(e.message));
 $("addStep").onclick = () => {
-  session.procedure.steps = [...$("steps").querySelectorAll(".step")].map(
-    (d) => ({
-      goal: d.querySelector('[data-field="goal"]').value,
-      check: d.querySelector('[data-field="check"]').value,
-    }),
-  );
+  session.procedure.steps = collectSteps();
   if (session.procedure.steps.length >= 20) {
     toast("Keep this procedure to 20 checkpoints.");
     return;
@@ -421,6 +445,7 @@ $("run").onclick = async () => {
     toast("Stop recording before running a trial.");
     return;
   }
+  if (!$("reviewed").checked) { toast("Review the actions in Explain the why, then authorize this trial."); return; }
   b.disabled = true;
   b.textContent = "Browser trial running…";
   $("runStatus").textContent = "RUNNING";
@@ -435,7 +460,8 @@ $("run").onclick = async () => {
         caption: $("caption").value,
         filename: $("filename").value,
         variant: $("variant").value,
-        repair: $("repair").checked,
+        repair: false,
+        mode: "procedure",
       }),
     });
     session.runs.push(run);
@@ -451,7 +477,7 @@ $("run").onclick = async () => {
     $("runStatus").textContent = "FAILED";
   } finally {
     b.disabled = false;
-    b.textContent = "Run practice trial ↗";
+    b.textContent = "Run reviewed procedure ↗";
   }
 };
 async function boot() {
@@ -477,7 +503,7 @@ document.addEventListener("input", (e) => {
     ["title", "notes"].includes(e.target.id) ||
     e.target.closest("#questions,#steps")
   )
-    dirty = true;
+    { dirty = true; if (e.target.closest("#steps")) $("reviewed").checked = false; }
 });
 window.addEventListener("beforeunload", (e) => {
   if (dirty || recorder?.state === "recording") {
@@ -503,4 +529,49 @@ function renderHistory() {
 $("runHistory").onchange = () => {
   const run = session.runs.find((r) => r.id === $("runHistory").value);
   if (run) renderRun(run);
+};
+
+$("loadPractice").onclick = () => {
+  session.procedure.steps = structuredClone(practiceSteps);
+  dirty = true; renderSteps(); toast("Practice actions loaded. Review them before saving.");
+};
+$("importProcedure").onchange = async e => {
+  const file = e.target.files[0]; if (!file) return;
+  try {
+    if (file.size > 30000) throw Error("Procedure JSON must be smaller than 30 KB.");
+    const proposal = JSON.parse(await file.text());
+    if (!Array.isArray(proposal.steps) || proposal.steps.length > 20) throw Error("Expected a procedure with up to 20 steps.");
+    if (proposal.steps.some(step => !step || typeof step.goal !== "string" || typeof step.check !== "string" || (step.target != null && typeof step.target !== "string"))) throw Error("Each step needs text goal, check and optional target.");
+    if (proposal.steps.some(step => step.action && !["upload", "fill", "click", "verify_draft"].includes(step.action))) throw Error("Unsupported action. Use upload, fill, click or verify_draft.");
+    session.procedure.steps = proposal.steps; dirty = true; renderSteps(); setTab("teach");
+    toast("Agent proposal imported for review. Nothing has run.");
+  } catch (error) { toast(error.message); }
+  e.target.value = "";
+};
+
+function renderObservations() {
+  const box = $("observations"); box.replaceChildren();
+  let observations = [];
+  try { observations = JSON.parse(session.answers?.agent_observations || "[]"); } catch {}
+  if (!observations.length) return;
+  box.append(textEl("h3", "Agent observations · review against your recording"));
+  for (const observation of observations) {
+    const row = textEl("p", `${formatTime(observation.timestamp)} · ${observation.text}`);
+    box.append(row);
+  }
+}
+$("loadProposal").onclick = async () => {
+  try {
+    const {proposal} = await api(`/api/sessions/${session.id}/proposal`);
+    if (!proposal) { toast("No agent proposal yet. Connect the MCP tools and ask your agent to inspect this recording."); return; }
+    const observations = JSON.stringify(proposal.observations);
+    for (const [key] of prompts) session.answers[key] = $(`answer-${key}`).value;
+    session.answers.agent_observations = observations;
+    session.answers.agent_questions = JSON.stringify(proposal.questions);
+    session.answers.proposal_id = proposal.id;
+    prompts = [...basePrompts, ...proposal.questions.map(q => ["agent-" + q.id, q.question])];
+    session.procedure.steps = proposal.procedure.steps;
+    dirty = true; renderObservations(); renderQuestions(); renderSteps();
+    toast("Agent proposal loaded for review. Save a reviewed revision before trying it.");
+  } catch (error) { toast(error.message); }
 };

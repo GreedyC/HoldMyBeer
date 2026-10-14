@@ -90,3 +90,77 @@ def test_real_browser_normal_changed_and_repaired_runs(server):
     assert repaired["status"] == "verified", repaired
     drafts = httpx.get(base + "/api/fixture/drafts").json()["drafts"]
     assert {normal["draft_id"], repaired["draft_id"]} <= {draft["id"] for draft in drafts}
+
+
+def test_reviewed_procedure_runs_fresh_inputs_and_uses_saved_targets(server):
+    base, _ = server
+    session = httpx.post(base + "/api/sessions", json={"title": "Reviewed procedure"}).json()
+    procedure = {"revision": 7, "steps": [
+        {"goal": "Choose media", "check": "File is selected", "action": "upload", "target": "Media", "input": "filename"},
+        {"goal": "Enter caption", "check": "Caption is entered", "action": "fill", "target": "Caption", "input": "caption"},
+        {"goal": "Save draft", "check": "Draft is submitted", "action": "click", "target": "Save draft"},
+        {"goal": "Confirm saved draft", "check": "Draft is retained", "action": "verify_draft"},
+    ]}
+    assert httpx.put(base + f"/api/sessions/{session['id']}", json={"procedure": procedure}).status_code == 200
+    run_url = base + f"/api/sessions/{session['id']}/run"
+    first = httpx.post(run_url, json={"caption": "First caption", "filename": "first.mp4", "variant": "normal", "repair": False, "mode": "procedure"}).json()
+    second = httpx.post(run_url, json={"caption": "Second caption", "filename": "second.mp4", "variant": "normal", "repair": False, "mode": "procedure"}).json()
+    assert first["status"] == second["status"] == "verified"
+    assert first["draft_id"] != second["draft_id"]
+    assert first["procedure"] == procedure
+    assert [(s["action"], s["status"]) for s in second["steps"]] == [("upload", "passed"), ("fill", "passed"), ("click", "passed"), ("verify_draft", "passed")]
+
+    failed = httpx.post(run_url, json={"caption": "Changed", "filename": "changed.mp4", "variant": "changed", "repair": True, "mode": "procedure"}).json()
+    assert failed["status"] == "needs_teaching", failed
+    assert "click" in failed["failure"]
+    assert failed["procedure"] == procedure
+    assert failed["draft_id"] is None
+
+    changed = {**procedure, "revision": 8, "steps": [*procedure["steps"]]}
+    changed["steps"][2] = {**changed["steps"][2], "target": "Store draft"}
+    assert httpx.put(base + f"/api/sessions/{session['id']}", json={"procedure": changed}).status_code == 200
+    taught = httpx.post(run_url, json={"caption": "Changed", "filename": "changed.mp4", "variant": "changed", "repair": False, "mode": "procedure"}).json()
+    assert taught["status"] == "verified", taught
+    assert taught["procedure"] == changed
+
+
+def test_procedure_rejects_incomplete_malformed_and_reordered_actions(server):
+    base, _ = server
+    session = httpx.post(base + "/api/sessions", json={"title": "Validation"}).json()
+    url = base + f"/api/sessions/{session['id']}"
+    valid_steps = [
+        {"goal": "u", "check": "u", "action": "upload", "target": "Media", "input": "filename"},
+        {"goal": "f", "check": "f", "action": "fill", "target": "Caption", "input": "caption"},
+        {"goal": "c", "check": "c", "action": "click", "target": "Save draft"},
+        {"goal": "v", "check": "v", "action": "verify_draft"},
+    ]
+    malformed = [
+        [valid_steps[0], valid_steps[1], valid_steps[2]],
+        [valid_steps[1], valid_steps[0], valid_steps[2], valid_steps[3]],
+        [{**valid_steps[0], "input": "caption"}, *valid_steps[1:]],
+        [*valid_steps[:3], {**valid_steps[3], "target": "output"}],
+    ]
+    for steps in malformed:
+        assert httpx.put(url, json={"procedure": {"revision": 2, "steps": steps}}).status_code == 422
+
+    run_url = base + f"/api/sessions/{session['id']}/run"
+    rejected = httpx.post(run_url, json={"caption": "x", "filename": "x.mp4", "variant": "normal", "repair": False, "mode": "procedure"})
+    assert rejected.status_code == 422
+
+
+def test_proposal_inbox_does_not_apply_agent_actions(server):
+    from holdmybeer.proposals import create_proposal
+    base, data_dir = server
+    session = httpx.post(base + '/api/sessions', json={'title': 'Review inbox'}).json()
+    steps = [
+        {'goal': 'Upload', 'check': 'File selected', 'action': 'upload', 'target': 'Media', 'input': 'filename'},
+        {'goal': 'Caption', 'check': 'Text matches', 'action': 'fill', 'target': 'Caption', 'input': 'caption'},
+        {'goal': 'Save', 'check': 'Receipt', 'action': 'click', 'target': 'Save draft'},
+        {'goal': 'Verify', 'check': 'Retained', 'action': 'verify_draft'},
+    ]
+    url = base + f"/api/sessions/{session['id']}"
+    assert httpx.get(url + '/proposal').json() == {'proposal': None}
+    p = create_proposal(data_dir, session['id'], [{'timestamp': 2, 'text': 'Caption visible'}], [{'id': 'fresh-file', 'question': 'Choose a new file?'}], {'revision': 1, 'steps': steps})
+    assert httpx.get(url + '/proposal').json()['proposal']['id'] == p['id']
+    assert httpx.get(url).json()['procedure']['steps'] == []
+    assert httpx.get(base + '/api/sessions/missing/proposal').status_code == 404

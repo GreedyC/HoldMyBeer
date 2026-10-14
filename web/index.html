@@ -12,9 +12,7 @@
       <a class="brand" href="/">HoldMyBeer<span> / LAB</span></a>
       <div class="header-right">
         <span class="status-dot"></span> LOCAL PREVIEW
-        <a href="/fixture" target="_blank" rel="noopener"
-          >Open practice app ↗</a
-        >
+        <a href="#practice">Practice task ↓</a>
       </div>
     </header>
     <div class="layout">
@@ -29,8 +27,7 @@
           <strong>Your agent. Your workflow.</strong>
           <p>You show the way.<br />We keep the receipts.</p>
           <small
-            >Video capture works. Teaching is manual in this preview. AI
-            analysis is next.</small
+            >Record, review actions, and check the result. Your existing agent supplies the reasoning.</small
           >
         </div>
       </aside>
@@ -52,26 +49,24 @@
           <ol>
             <li>
               <strong>Try the task.</strong>
-              <a href="/fixture" target="_blank" rel="noopener"
-                >Open the practice app ↗</a
-              >, use its sample file, and save a draft.
+              Use the practice task below, choose its sample file, and save a draft.
             </li>
             <li>
-              <strong>Record yourself repeating it.</strong> Return here, click
-              Record screen, choose the practice tab in the browser picker, then
-              repeat the task there.
+              <strong>Record yourself repeating it.</strong> Click Record screen, choose this HoldMyBeer tab in the browser picker, then repeat the task below.
             </li>
             <li>
-              <strong>Finish the recording.</strong> Return here and click Stop
+              <strong>Finish the recording.</strong> Click Stop
               &amp; save. Your video appears below. Add a moment or notes, then
               use Explain the why.
             </li>
           </ol>
           <p class="guide-limit">
-            This preview saves video and manual teaching notes. It does not
-            automatically watch your recording or ask AI questions yet. “Let it
-            try” runs a separate practice routine.
+            Recording stays local. Your connected agent can inspect selected frames through MCP. Review executable actions before running them in the practice app. Automatic analysis is not started by recording.
           </p>
+        </section>
+        <section id="practice" class="practice-panel">
+          <p class="eyebrow">PRACTICE TASK · SAME PAGE</p>
+          <iframe src="/fixture?embedded=1" title="Practice task: save a draft" loading="lazy"></iframe>
         </section>
         <section class="workflow-heading">
           <div>
@@ -143,8 +138,7 @@
                 placeholder="Why this account? What tells you the upload is done? What should happen if something looks different?"
               ></textarea>
               <div class="hint">
-                <span>↳</span> AI video analysis isn't connected yet. Your notes
-                and checkpoints are the teaching material.
+                <span>↳</span> Use the MCP recording tools to let your agent inspect frames. Review its interpretation alongside your notes.
               </div>
             </div>
           </div>
@@ -166,9 +160,10 @@
               <p class="eyebrow">TEACHING WORKBOOK</p>
               <h2>Make the invisible<br />parts explicit.</h2>
               <p class="muted">
-                These are editable prompts, not AI-generated questions. Your
-                answers persist with this workflow.
+                Start with the manual prompts, or load timestamped observations and questions proposed by your connected agent. Your answers persist with this workflow.
               </p>
+              <button id="loadProposal" class="quiet">Load latest agent proposal for review</button>
+              <div id="observations"></div>
               <div id="questions"></div>
             </div>
             <div class="procedure">
@@ -177,14 +172,14 @@
                 <span>REVISION <b id="revision">1</b></span>
               </div>
               <p class="muted">
-                Define what to do and the evidence that proves it happened.
-                These are teaching notes. The trial runs a fixed practice
-                routine; it does not execute your edited steps.
+                Each executable action names an exact accessible label or button. The runner uses these saved actions in order. A final retained-draft check is required.
               </p>
+              <button id="loadPractice" class="quiet">Load practice actions for review</button>
+              <label class="file-button">Import agent procedure JSON<input id="importProcedure" type="file" accept="application/json,.json" hidden /></label>
               <div id="steps"></div>
               <button id="addStep" class="quiet">+ Add checkpoint</button
               ><button id="saveProcedure" class="primary">
-                Save teaching revision
+                Save reviewed revision
               </button>
             </div>
           </div>
@@ -195,9 +190,7 @@
               <p class="eyebrow">A FRESH INPUT. A REAL ATTEMPT.</p>
               <h2>Trust the result.<br />Check the evidence.</h2>
               <p class="muted">
-                This trial runs a fixed practice routine in a real browser,
-                independently of your recording and edited procedure. It does
-                not post to any social account.
+                This trial executes your reviewed revision in a real browser with fresh inputs. It is limited to the local practice app.
               </p>
               <label for="filename">New file name</label
               ><input id="filename" value="second-product-demo.txt" /><label
@@ -212,10 +205,9 @@ A fresh example, prepared for review.</textarea
                   Changed button label — expect a teaching stop
                 </option></select
               ><label class="check"
-                ><input type="checkbox" id="repair" /> I reviewed the changed
-                label: use “Store draft”</label
+                ><input type="checkbox" id="reviewed" /> I reviewed these actions and authorize this local trial</label
               ><button class="primary" id="run">
-                Run practice trial <span>↗</span></button
+                Run reviewed procedure <span>↗</span></button
               ><small class="trial-note"
                 >The fixture uploads a generated text file to test the flow.
                 This is not video-platform acceptance.</small
@@ -245,7 +237,7 @@ A fresh example, prepared for review.</textarea
           </div>
         </section>
         <footer>
-          <span>HoldMyBeer / Experimental Hermes plugin</span
+          <span>HoldMyBeer / Experimental agent skill</span
           ><span>Built to be taught. Built to be questioned.</span>
         </footer>
       </main>

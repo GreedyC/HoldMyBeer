@@ -19,3 +19,18 @@ This is a working local prototype, not the completed AI teaching product.
 Local browser evidence used installed Playwright 1.62 with its matching Chromium. A separate environment initially resolved a newer Playwright expecting a different browser revision. Use `python3 -m playwright install chromium` from your activated environment; do not reuse a browser cache without checking compatibility. CI installs a matching browser before tests.
 
 The screen picker itself has not been manually exercised in this environment. The imported clip is a media-transport test, not a recorded workflow. Automatic visual questions, procedure compilation and arbitrary-app replay remain future work.
+
+## Teaching-loop alpha checkpoint
+
+The earlier table records the initial fixed-routine preview. The next slice now has:
+
+- A single-page embedded practice task and workflow creation without unsupported browser prompts.
+- Saved executable procedure actions with fresh inputs and immutable per-run snapshots.
+- Visible-browser normal verification, changed-label stop, and a saved `Store draft` correction that verified a new retained draft.
+- Four stdio MCP tools: session list/detail, timestamped recording frames, and review-only teaching proposals. Real handshake, image and proposal responses are tested.
+- Actual user-recording frames inspected at 2, 12, 24, 36 and 43 seconds. The clip shows a prior saved receipt, a caption edit and a new matching receipt; initial file selection was outside the observed segment. No invented click sequence was claimed.
+- A proposal with timestamped observations and a focused question loaded into the visible workbook. The new-file default was explicitly marked as a working assumption derived from existing teaching notes.
+- A separately built and installed wheel, tested outside the source import path: workspace assets, reviewed Chromium trial, retained screenshot and four-tool MCP handshake passed.
+- 20 tests passed across backend, MCP and proposal validation, including WebM without duration metadata, unknown actions, corrupt/outside-path media, and proposal isolation from saved procedures.
+
+These checks establish a local fixture teaching loop with the host agent doing the reasoning. They do not establish every client's installation, general website execution or a production Hermes deployment. Private user frames and recordings are excluded from repository evidence.

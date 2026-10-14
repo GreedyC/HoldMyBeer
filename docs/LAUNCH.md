@@ -2,7 +2,7 @@
 
 ## Draft announcement
 
-> HoldMyBeer is an experimental local preview for teaching browser workflows by demonstration. It is designed as a plugin/skill for your existing agent. There is no AI inference or video analysis in this preview yet: people add notes and answers themselves, then a bundled-browser runner executes a fixed practice routine against a test fixture (edited procedures are not executable yet). The Hermes integration is an opt-in scaffold with a read-only status check. We’d love help making the recorder clearer, writing fixture examples, checking accessibility, and improving failure messages. Nothing here publishes to social accounts. [Add the public repository URL after publication.]
+> HoldMyBeer is an experimental local plugin/skill project for teaching workflows to the agent you already use. Record a task, let your connected agent inspect timestamped frames and propose questions/actions, then review a fresh-input browser trial. The current runner is limited to a bundled draft fixture. We need independent client installation tests, accessibility checks and a real workflow beyond that fixture. Nothing here publishes to social accounts. https://github.com/wspotter/HoldMyBeer
 
 This is draft copy. Verify the repository URL and current preview behavior before posting it anywhere.
 

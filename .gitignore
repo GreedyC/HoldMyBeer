@@ -8,3 +8,5 @@ artifacts/
 *.webm
 *.mp4
 .env
+build/
+dist/

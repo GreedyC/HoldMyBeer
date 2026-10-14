@@ -9,36 +9,24 @@ import tempfile
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator, model_validator
 
 VERSION = "0.1.0"
 MAX_MEDIA_BYTES = 100 * 1024 * 1024
 DATA_DIR = Path(os.environ.get("HMB_DATA_DIR", "~/.local/share/holdmybeer")).expanduser().resolve()
-FIXTURE_HTML = (Path(__file__).resolve().parent.parent / "web" / "fixture.html").read_text()
+_ASSET_DIR = Path(__file__).resolve().parent / "web"
+if not _ASSET_DIR.is_dir():
+    _ASSET_DIR = Path(__file__).resolve().parent.parent / "web"
+FIXTURE_HTML = (_ASSET_DIR / "fixture.html").read_text()
 
 
-class StrictModel(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-
-class CreateSession(StrictModel):
-    title: str = Field(min_length=1, max_length=200)
-
-
-class ProcedureStep(StrictModel):
-    goal: str = Field(min_length=1, max_length=500)
-    check: str = Field(min_length=1, max_length=1000)
-
-
-class Procedure(StrictModel):
-    revision: StrictInt = Field(ge=1)
-    steps: list[ProcedureStep] = Field(max_length=20)
+from .models import StrictModel, CreateSession, Procedure
 
 
 class UpdateSession(StrictModel):
@@ -50,8 +38,8 @@ class UpdateSession(StrictModel):
     @field_validator("answers")
     @classmethod
     def validate_answers(cls, answers):
-        if answers is not None and any(not key.strip() or len(key) > 100 or len(value) > 2000 for key, value in answers.items()):
-            raise ValueError("answer keys must be 1-100 characters and values at most 2000 characters")
+        if answers is not None and any(not key.strip() or len(key) > 100 or len(value) > (4000 if key in {"agent_observations", "agent_questions"} else 2000) for key, value in answers.items()):
+            raise ValueError("answer keys must be 1-100 characters and values at most 2000 characters (4000 for agent observation/question bundles)")
         return answers
 
 
@@ -60,6 +48,8 @@ class RunInput(StrictModel):
     filename: str = Field(min_length=1, max_length=255)
     variant: str = Field(pattern="^(normal|changed)$")
     repair: bool
+    mode: Literal["practice", "procedure"] = "practice"
+
 
 
 class DraftInput(StrictModel):
@@ -153,7 +143,7 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         return await call_next(request)
 
     @app.get("/api/status")
-    def status(): return {"version": VERSION, "analysis": "manual", "runner": "bundled-browser", "hermes": "scaffold"}
+    def status(): return {"version": VERSION, "analysis": "manual", "runner": "bundled-browser", "procedure_runner": "reviewed-fixture-actions", "hermes": "scaffold"}
 
     @app.get("/api/sessions")
     def list_sessions():
@@ -171,10 +161,16 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
     @app.get("/api/sessions/{session_id}")
     def get_session(session_id: str): return app.state.store.get_session(session_id)
 
+    @app.get("/api/sessions/{session_id}/proposal")
+    def get_proposal(session_id: str):
+        app.state.store.get_session(session_id)
+        from .proposals import latest_proposal
+        return {"proposal": latest_proposal(app.state.store.root, session_id)}
+
     @app.put("/api/sessions/{session_id}")
     def update_session(session_id: str, body: UpdateSession):
         data = app.state.store.get_session(session_id)
-        patch = body.model_dump(exclude_unset=True)
+        patch = body.model_dump(exclude_unset=True, exclude_none=True)
         for key, value in patch.items():
             if value is not None: data[key] = value
         app.state.store.save_session({k: v for k, v in data.items() if k != "runs"})
@@ -242,14 +238,22 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
     @app.post("/api/sessions/{session_id}/run")
     def run_session(session_id: str, body: RunInput, request: Request):
         session = app.state.store.get_session(session_id)
+        procedure = session.get("procedure", {})
+        if body.mode == "procedure":
+            steps = procedure.get("steps", [])
+            actions = [step.get("action") for step in steps]
+            if len(steps) != 4 or actions != ["upload", "fill", "click", "verify_draft"]:
+                raise HTTPException(422, "procedure mode requires upload, fill, click, verify_draft actions in order")
         filename = _safe_filename(body.filename)
         run = {"id": str(uuid.uuid4()), "status": "failed", "revision": session["procedure"]["revision"], "caption": body.caption,
-               "filename": filename, "steps": [], "failure": None, "screenshot_url": None, "draft_id": None}
+               "filename": filename, "mode": body.mode, "procedure": json.loads(json.dumps(procedure)) if body.mode == "procedure" else None,
+               "steps": [], "failure": None, "screenshot_url": None, "draft_id": None}
         if not app.state.runner_lock.acquire(blocking=False): raise HTTPException(429, "a browser run is already active")
         try:
             try:
                 from .runner import execute
-                result = execute(f"http://127.0.0.1:{request.scope["server"][1]}", app.state.store.artifacts, run["id"], body.caption, filename, body.variant, body.repair)
+                result = execute(f"http://127.0.0.1:{request.scope['server'][1]}", app.state.store.artifacts, run["id"], body.caption, filename, body.variant, body.repair,
+                                 body.mode, procedure if body.mode == "procedure" else None)
                 run.update(result)
             except Exception as exc:
                 run["failure"] = (str(exc) or type(exc).__name__)[:500]
@@ -265,7 +269,7 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
             if run["id"] == run_id: return run
         raise HTTPException(404, "run not found")
 
-    web_dir = Path(__file__).resolve().parent.parent / "web"
+    web_dir = _ASSET_DIR
     if web_dir.is_dir() and any(web_dir.iterdir()): app.mount("/", StaticFiles(directory=web_dir, html=True), name="web")
     return app
 

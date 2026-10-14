@@ -1,33 +1,37 @@
 # Developer guide
 
-## Current preview
+## Local teaching engine
 
-The app is a local FastAPI service and static teaching interface. Its contract is in [docs/CONTRACT.md](docs/CONTRACT.md). Run it with:
+FastAPI serves the same-page recording/practice workspace on loopback:
 
 ```bash
 python3 -m uvicorn holdmybeer.app:app --host 127.0.0.1 --port 18940
 ```
 
-The supported instructions in this preview are for running directly from a source checkout. `pyproject.toml` declares project dependencies, but a built wheel has not been verified to contain the web assets or Hermes scaffold; do not present wheel installation as supported.
+Runtime recordings, proposals, SQLite data and screenshots belong outside the checkout under `HMB_DATA_DIR` (default `~/.local/share/holdmybeer`). No Printery service, LAN URL or managed deployment is configured by this repo. The current interface contract is [docs/CONTRACT.md](docs/CONTRACT.md).
 
-Screen capture is implemented with the browser picker but still needs a manual window-selection test. Video import and decoded playback were verified. Teaching answers and procedure notes are manual. The Playwright runner uses a fixed bundled-fixture routine and verifies the retained draft. It does not execute edited procedure notes. AI video analysis, general website automation, live social publishing, and production Hermes setup are not implemented.
+`holdmybeer/models.py` owns shared procedure validation. Saved executable fixture actions drive procedure trials with fresh inputs. Runs snapshot the exact procedure revision so later corrections cannot alter earlier evidence. Notes-only legacy sessions remain readable; legacy practice mode remains available through the API. The UI uses procedure mode and requires review.
 
-Runtime files belong outside the checkout, in `HMB_DATA_DIR` or `~/.local/share/holdmybeer`. Keep personal media and account data out of commits and issue attachments.
+`proposals.py` writes separate review-only files. `GET /api/sessions/{id}/proposal` returns the latest valid proposal without applying it. Loading, saving a reviewed revision and running are separate user actions. Agent questions/observations and user answers persist in bounded answer bundles. The original recording stays intact.
 
-## Hermes scaffold
+`web/fixture.html` supplies sample-file selection, validation, a readable saved receipt and a retained draft list. Embedded mode hides standalone navigation. The runner reads output JSON only after the fixture verifies retention, and independently compares the draft ID, filename and caption with storage.
 
-`plugin.yaml` and `__init__.py` define an opt-in native Hermes plugin. Its sole `hmb_status` tool reads the local preview's `/api/status` endpoint. Configure `HMB_URL` only when needed; accepted URLs must use HTTP and a loopback host (`localhost`, `127.0.0.1`, or `::1`). The default is `http://127.0.0.1:18940`. The tool has a short timeout, refuses redirects, and returns an error if the preview is unavailable. It never starts or installs anything.
+## MCP and clients
 
-Hermes plugins run in-process with the user's permissions. The scaffold remains disabled unless the user explicitly enables it in Hermes. A successful import is not evidence that the preview is installed or that any other Hermes capability is available.
+`holdmybeer-mcp` launches the official Python MCP SDK over stdio. It exposes bounded session reads, recording frames and a review-only proposal tool; there is no MCP execution tool. The host agent supplies vision and reasoning. Selected images returned to that host follow its model provider's data handling.
 
-## Dependencies and checks
+Frame inspection requires local `ffmpeg` and `ffprobe`. Decoding uses file/pipe protocols only, dimensions within 1280 × 720, finite timestamps, subprocess deadlines and a bounded packet-duration fallback for browser WebM without metadata. [docs/CLIENTS.md](docs/CLIENTS.md) contains configuration examples. Individual client installations and image understanding require separate receipts.
 
-Runtime dependencies are FastAPI, Uvicorn, and Playwright. Test dependencies are pytest and httpx. From the source checkout, install with `python3 -m pip install -e '.[test]'`; install Chromium with `python3 -m playwright install chromium`.
+`skills/teach-workflow/SKILL.md` guides frame-grounded observations, questions, proposed actions and evidence review. No skill is installed automatically. `plugin.yaml` and root `__init__.py` remain a separate native Hermes status-only scaffold. Its `HMB_URL` accepts HTTP loopback URLs, refuses redirects and never starts or installs the preview. Production Hermes loading remains unverified.
 
-Developer README updated for the preview interfaces and verified limits.
+## Packaging and checks
 
-## Practice flow clarity
+Install dependencies in a virtual environment with `python3 -m pip install -e '.[test]'` and install matching Chromium with `python3 -m playwright install chromium`. Runtime dependencies include FastAPI, Uvicorn, Playwright and MCP; tests use pytest/httpx and generated ffmpeg media.
 
-The practice page is `web/fixture.html`, read by `/fixture`. It offers a harmless sample, explicit validation, a human-readable saved receipt and a retained draft list. The workspace explains the tab switch/record/stop sequence and states that AI analysis is unfinished. The runner consumes the single output JSON only after retention verification.
+Run `pytest -q`, `node --check web/app.js` and `python -m compileall -q holdmybeer`. Local browser acceptance used Playwright 1.62 with its matching installed browser. CI installs a matching browser for its resolved version.
 
-Branding uses HoldMyBeer and the user’s existing agent. Shared engine/MCP portability is planned; Hermes remains the only current scaffold.
+`setup.py` copies canonical `web/` assets into `holdmybeer/web/` for wheels; `MANIFEST.in` includes assets in source distributions. The app resolves package assets first and source assets otherwise. `tests/wheel_smoke.py`, run with a separately installed wheel interpreter, verifies workspace assets, an actual reviewed browser trial and the four-tool MCP handshake. The native Hermes scaffold and teaching skill remain source-only.
+
+This alpha executes only the bundled four-action fixture. Arbitrary websites, live publishing, mid-run cancellation, a managed production service and independent client/platform acceptance are unfinished. Track those gates in [docs/STATUS.md](docs/STATUS.md).
+
+Developer README updated for the procedure, proposal, MCP and packaging interfaces.

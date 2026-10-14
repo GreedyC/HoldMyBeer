@@ -2,16 +2,17 @@
 
 **Teach your agent by showing it.**
 
-The goal: show an app workflow, let the agent ask questions, then watch it try and improve from your corrections. This first prototype supplies the recording workspace and a reproducible trial engine. HoldMyBeer is an early plugin/skill project for teaching and checking browser workflows with the agent you already use. The shared engine is intended to support MCP-compatible clients such as Codex, Claude Code and editor integrations; Hermes is the first adapter. Those additional client integrations are planned, not yet verified.
+The goal: show an app workflow, let the agent ask questions, then watch it try and improve from your corrections. This first prototype supplies the recording workspace and a reproducible trial engine. HoldMyBeer is an early plugin/skill project for teaching and checking browser workflows with the agent you already use. The shared engine is intended to support MCP-compatible clients such as Codex, Claude Code and editor integrations; Hermes is the first adapter. A stdio MCP bridge now exposes local recordings and teaching proposals; see [client setup](docs/CLIENTS.md). Individual client installations still need end-to-end verification.
 
 ## What works today
 
 - Screen-capture controls using the browser picker (window/tab choice needs a manual compatibility check); verified video import and playback.
 - Manual teaching notes, questions, and editable procedure steps.
-- A real Playwright browser trial that runs a fixed practice routine, checks the saved draft, and retains screenshots. Changed controls stop for a reviewed repair.
-- Saved trial history and teaching notes. Edited procedures are not yet executable.
+- Reviewed executable actions drive a real Playwright trial with fresh inputs. Changed controls stop; editing the action target and saving a new revision repairs the workflow. Retained draft checks and screenshots supply evidence.
+- Saved procedure snapshots and trial history, plus a same-page practice task.
+- MCP tools return selected recording frames to your existing agent and place its observations, questions and validated procedure in a local review inbox.
 
-The preview does **not** use AI inference or analyze video with AI, publish to social networks, or provide a production Hermes installation. Hermes support is an opt-in scaffold with one read-only status tool. The runner exercises the bundled fixture; it does not automate arbitrary websites.
+The preview does **not** run its own AI model, automatically analyze a recording on capture, publish to social networks, or provide a production Hermes installation. Hermes support is an opt-in scaffold with one read-only status tool. The runner exercises the bundled fixture; it does not automate arbitrary websites.
 
 ## Try the local preview
 
@@ -25,7 +26,7 @@ python3 -m playwright install chromium
 python3 -m uvicorn holdmybeer.app:app --host 127.0.0.1 --port 18940
 ```
 
-The documented preview path is an editable source checkout. A built wheel is not currently documented or verified to include the web assets or Hermes scaffold.
+The source checkout is the contributor path. Built wheels include the workspace assets and MCP executable; a clean wheel installation is checked separately. The native Hermes scaffold remains source-only. Frame inspection also requires `ffmpeg` and `ffprobe` on PATH.
 
 Open <http://127.0.0.1:18940>. Data is stored outside the repository under `~/.local/share/holdmybeer` by default; set `HMB_DATA_DIR` to choose another private local directory. Browser capture may require a secure context; use localhost as shown.
 
@@ -41,6 +42,6 @@ This is an experimental preview. See [DEVELOPER.md](DEVELOPER.md) for the curren
 
 ## Help build the actual teaching loop
 
-The next substantial contributions are timestamped browser observations, bounded vision analysis through Hermes, and compiling reviewed teaching notes into executable procedures. Start with the [architecture contract](docs/CONTRACT.md) and [contribution guide](CONTRIBUTING.md). No fine-tuning is required: the reusable artifact is a tested procedure.
+The next substantial contributions are independent client installation tests, richer browser action contracts, and a verified workflow beyond the practice fixture. Start with the [architecture contract](docs/CONTRACT.md) and [contribution guide](CONTRIBUTING.md). No fine-tuning is required: the reusable artifact is a tested procedure.
 
 See [verified preview evidence](docs/VERIFICATION.md).
